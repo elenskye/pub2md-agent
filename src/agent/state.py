@@ -78,9 +78,13 @@ class ArticleState(TypedDict, total=False):
     style: str
     pdf_path: str
     article: Article
+    has_english: bool
+    script_state: str  # "none" | "simplified" | "traditional" | "mixed"
+    english_paragraphs: list[str]  # source paragraphs, existing translation dropped
     translated_paragraphs: list[dict]  # {"en": str, "zh": str, "failed": bool}
     zh_title: str
     zh_subtitle: str
+    output_mode: str  # "bilingual" (EN source) | "chinese_only" (ZH source)
     bilingual_md: str
     # Same reducer fields as the parent so subgraph output merges cleanly.
     results: Annotated[list[ArticleResult], operator.add]

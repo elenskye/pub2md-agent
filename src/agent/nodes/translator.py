@@ -47,11 +47,30 @@ def _batches(items: list[str]) -> list[list[int]]:
     return batches
 
 
+def _loads_with_repair(text: str) -> dict:
+    """DeepSeek emits almost-JSON even in JSON mode: a value ending with a
+    Chinese closing quote (”) deterministically loses its ASCII closing
+    quote, and long replies can truncate mid-string. Try the raw text, then
+    the known tail repairs — retrying the model does not help since the
+    defect is reproducible byte-for-byte."""
+    candidates = [text, text + '"}', text + "}"]
+    stripped = text.rstrip()
+    if stripped.endswith("}"):
+        # Missing close-quote right before the final brace.
+        candidates.append(stripped[:-1].rstrip() + '"}')
+    last_error: Exception | None = None
+    for candidate in candidates:
+        try:
+            # strict=False tolerates literal newlines inside JSON strings.
+            return json.loads(candidate, strict=False)
+        except json.JSONDecodeError as exc:
+            last_error = exc
+    raise last_error
+
+
 def _parse_reply(content: str, expected: list[int]) -> dict[int, str]:
     text = content.strip().removeprefix("```json").removeprefix("```").removesuffix("```")
-    # strict=False tolerates literal newlines the model sometimes emits
-    # inside JSON strings.
-    raw = json.loads(text, strict=False)
+    raw = _loads_with_repair(text)
     out = {int(k): str(v).strip() for k, v in raw.items()}
     missing = [i for i in expected if i + 1 not in out or not out[i + 1]]
     if missing:
@@ -70,7 +89,7 @@ def translator(state: ArticleState) -> dict:
     # Title and standfirst are translated alongside the body in batch 1.
     segments = [article["title"]] + ([article["subtitle"]] if article["subtitle"] else [])
     n_meta = len(segments)
-    segments += article["paragraphs"]
+    segments += state.get("english_paragraphs", article["paragraphs"])
 
     zh: dict[int, str] = {}
     errors: list[str] = []
@@ -108,6 +127,7 @@ def translator(state: ArticleState) -> dict:
         "zh_title": zh.get(0, FAILED_MARK),
         "zh_subtitle": zh.get(1, FAILED_MARK) if article["subtitle"] else "",
         "translated_paragraphs": pairs,
+        "output_mode": "bilingual",
         "errors": errors,
         "token_usage": usage,
     }

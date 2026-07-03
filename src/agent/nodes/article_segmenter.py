@@ -15,6 +15,7 @@ from pathlib import Path
 
 from src.agent.state import Article, Paragraph, PipelineState
 from src.config import get_chat_model
+from src.tools.pdf_layout_parser import latin_han_counts
 
 _PREVIEW_CHARS = 200
 
@@ -22,7 +23,10 @@ _CONFIRM_PROMPT = """\
 You are segmenting a magazine PDF into articles. Below are heading candidates
 detected by layout analysis, each with a preview of the text that follows.
 Real article headings start a new, self-contained article; reject candidates
-that are chart/figure titles, pull quotes, or section labels.
+that are chart/figure titles, pull quotes, or section labels. In particular,
+a single academic paper is ONE article: its title is the only article start,
+and internal section headings ("Abstract", "Introduction", "2 Background",
+"Conclusion", "References", ...) must be rejected.
 
 Candidates:
 {candidates}
@@ -31,12 +35,20 @@ Return ONLY a JSON object: {{"article_start_ids": [<ids of confirmed headings, a
 """
 
 
-def _subtitle_of(paras: list[Paragraph]) -> str:
-    """The paragraph right after a title is a standfirst if it is short and
-    does not end like a body sentence."""
-    if paras and len(paras[0]["text"]) <= 160 and not paras[0]["text"].endswith("."):
-        return paras[0]["text"]
-    return ""
+def _subtitle_of(title: str, paras: list[Paragraph]) -> str:
+    """The paragraph right after a title is a standfirst if it is short,
+    does not end like a body sentence, and is written in the same script as
+    the title (a Latin-only line under a Chinese title is leftover junk)."""
+    if not paras:
+        return ""
+    cand = paras[0]["text"]
+    if len(cand) > 160 or cand.endswith((".", "。", "！", "？")):
+        return ""
+    _, title_han = latin_han_counts(title)
+    _, cand_han = latin_han_counts(cand)
+    if title_han > 0 and cand_han == 0:
+        return ""
+    return cand
 
 
 def _confirm_with_llm(candidates: list[dict]) -> tuple[list[int], object]:
@@ -106,8 +118,10 @@ def article_segmenter(state: PipelineState) -> dict:
         # Consecutive confirmed headings with nothing between them cannot
         # happen (previews were non-empty), but guard against empty slices.
         rest = paras[start + 1 : end]
-        subtitle = _subtitle_of(rest)
-        body = [p["text"] for p in (rest[1:] if subtitle else rest) if not p["is_heading"]]
+        subtitle = _subtitle_of(title, rest)
+        # Unconfirmed headings inside the slice are crossheads/callouts —
+        # kept as body content, dropping them would lose text.
+        body = [p["text"] for p in (rest[1:] if subtitle else rest)]
         articles.append(Article(index=n, title=title, subtitle=subtitle, paragraphs=body))
 
     leading = paras[: confirmed[0]]

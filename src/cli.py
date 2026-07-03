@@ -39,7 +39,7 @@ def main() -> int:
     parser.add_argument(
         "--style",
         default="economist",
-        choices=["economist"],  # "academy" arrives in Phase 2
+        choices=["economist", "academy"],
         help="Translation style preset",
     )
     args = parser.parse_args()
