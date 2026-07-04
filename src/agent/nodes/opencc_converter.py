@@ -36,7 +36,11 @@ def opencc_converter(state: ArticleState) -> dict:
                 f"({exc}); keeping original script"
             )
 
-    pairs = [{"en": "", "zh": convert(p), "failed": False} for p in article["paragraphs"]]
+    flags = article.get("headings") or [False] * len(article["paragraphs"])
+    pairs = [
+        {"en": "", "zh": convert(p), "failed": False, "is_heading": heading}
+        for p, heading in zip(article["paragraphs"], flags)
+    ]
     return {
         "zh_title": convert(article["title"]),
         "zh_subtitle": convert(article["subtitle"]),

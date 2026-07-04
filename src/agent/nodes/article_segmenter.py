@@ -71,14 +71,23 @@ def article_segmenter(state: PipelineState) -> dict:
     errors: list[str] = []
     usage: list[dict] = []
 
-    heading_idx = [i for i, p in enumerate(paras) if p["is_heading"]]
+    # Only oversized-font headings can bound articles; body-font crossheads
+    # (is_heading without font_heading) are rendering-only signals.
+    heading_idx = [i for i, p in enumerate(paras) if p.get("font_heading")]
 
     if not heading_idx:
         # No headings at all: treat the whole document as one article.
         title = Path(state["pdf_path"]).stem
-        body = [p["text"] for p in paras]
         return {
-            "articles": [Article(index=0, title=title, subtitle="", paragraphs=body)],
+            "articles": [
+                Article(
+                    index=0,
+                    title=title,
+                    subtitle="",
+                    paragraphs=[p["text"] for p in paras],
+                    headings=[p["is_heading"] for p in paras],
+                )
+            ],
             "errors": ["article_segmenter: no headings detected, whole PDF as one article"],
         }
 
@@ -119,10 +128,18 @@ def article_segmenter(state: PipelineState) -> dict:
         # happen (previews were non-empty), but guard against empty slices.
         rest = paras[start + 1 : end]
         subtitle = _subtitle_of(title, rest)
-        # Unconfirmed headings inside the slice are crossheads/callouts —
-        # kept as body content, dropping them would lose text.
-        body = [p["text"] for p in (rest[1:] if subtitle else rest)]
-        articles.append(Article(index=n, title=title, subtitle=subtitle, paragraphs=body))
+        # Unconfirmed headings inside the slice are crossheads — kept as body
+        # content with their heading flag so the formatter can render them.
+        body = rest[1:] if subtitle else rest
+        articles.append(
+            Article(
+                index=n,
+                title=title,
+                subtitle=subtitle,
+                paragraphs=[p["text"] for p in body],
+                headings=[p["is_heading"] for p in body],
+            )
+        )
 
     leading = paras[: confirmed[0]]
     if sum(len(p["text"]) for p in leading) > 400:
@@ -137,6 +154,7 @@ def article_segmenter(state: PipelineState) -> dict:
                 title=f"{Path(state['pdf_path']).stem} (untitled leading section)",
                 subtitle="",
                 paragraphs=[p["text"] for p in leading],
+                headings=[p["is_heading"] for p in leading],
             ),
         )
         for n, a in enumerate(articles):

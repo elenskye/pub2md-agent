@@ -13,11 +13,20 @@ from src.tools.pdf_layout_parser import is_chinese_line
 
 def en_text_isolator(state: ArticleState) -> dict:
     article = state["article"]
-    english = [p for p in article["paragraphs"] if not is_chinese_line(p)]
-    dropped = len(article["paragraphs"]) - len(english)
+    flags = article.get("headings") or [False] * len(article["paragraphs"])
+    kept = [
+        (text, heading)
+        for text, heading in zip(article["paragraphs"], flags)
+        if not is_chinese_line(text)
+    ]
+    dropped = len(article["paragraphs"]) - len(kept)
     errors = (
         [f"en_text_isolator[{article['title'][:40]}]: dropped {dropped} residual Chinese paragraph(s)"]
         if dropped
         else []
     )
-    return {"english_paragraphs": english, "errors": errors}
+    return {
+        "english_paragraphs": [text for text, _ in kept],
+        "english_headings": [heading for _, heading in kept],
+        "errors": errors,
+    }

@@ -1,0 +1,29 @@
+{
+  "items": [
+    {
+      "pdf": "test_articles/Buiness（2026.7.2）.pdf",
+      "style": "economist",
+      "expected_articles": 4
+    },
+    {
+      "pdf": "test_articles/The Trump Administration's Efforts to Reshape America's Past.pdf",
+      "style": "economist",
+      "expected_articles": 1
+    },
+    {
+      "pdf": "test_articles/Trump's Use of Troops in Los Angeles Was Unlawful, Judge Rules.pdf",
+      "style": "economist",
+      "expected_articles": 1
+    },
+    {
+      "pdf": "test_articles/Attention is All You Need.pdf",
+      "style": "academy",
+      "expected_articles": 1
+    },
+    {
+      "pdf": "test_articles/美國去工業化的迷思.pdf",
+      "style": "economist",
+      "expected_articles": 1
+    }
+  ]
+}

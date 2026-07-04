@@ -27,7 +27,8 @@ class Paragraph(TypedDict):
     text: str
     page: int  # page where the paragraph starts
     font_size: float
-    is_heading: bool
+    is_heading: bool  # any heading signal — used for rendering
+    font_heading: bool  # oversized font only — eligible as an article boundary
 
 
 class Article(TypedDict):
@@ -35,6 +36,7 @@ class Article(TypedDict):
     title: str
     subtitle: str  # empty string when the article has no standfirst
     paragraphs: list[str]
+    headings: list[bool]  # parallel to paragraphs: crosshead/section heading?
 
 
 class ArticleResult(TypedDict):
@@ -42,6 +44,8 @@ class ArticleResult(TypedDict):
     output_path: str
     n_paragraphs: int
     n_failed: int  # paragraphs left as [translation failed]
+    mode: str  # "bilingual" | "chinese_only"
+    pairs: list[dict]  # {"en", "zh", "failed"} — consumed by eval/, not CLI
 
 
 class TokenUsage(TypedDict):
@@ -61,6 +65,7 @@ class PipelineState(TypedDict, total=False):
     results: Annotated[list[ArticleResult], operator.add]
     errors: Annotated[list[str], operator.add]
     token_usage: Annotated[list[TokenUsage], operator.add]
+    new_terms: Annotated[list[dict], operator.add]
 
 
 class ArticleOutput(TypedDict, total=False):
@@ -70,6 +75,7 @@ class ArticleOutput(TypedDict, total=False):
     results: Annotated[list[ArticleResult], operator.add]
     errors: Annotated[list[str], operator.add]
     token_usage: Annotated[list[TokenUsage], operator.add]
+    new_terms: Annotated[list[dict], operator.add]
 
 
 class ArticleState(TypedDict, total=False):
@@ -81,6 +87,10 @@ class ArticleState(TypedDict, total=False):
     has_english: bool
     script_state: str  # "none" | "simplified" | "traditional" | "mixed"
     english_paragraphs: list[str]  # source paragraphs, existing translation dropped
+    english_headings: list[bool]  # parallel to english_paragraphs
+    glossary: dict  # lowercased EN term -> glossary entry, for this style
+    term_candidates: list[str]  # specialized terms not yet in the glossary
+    resolved_terms: list[dict]  # researched entries awaiting glossary write
     translated_paragraphs: list[dict]  # {"en": str, "zh": str, "failed": bool}
     zh_title: str
     zh_subtitle: str
@@ -90,3 +100,4 @@ class ArticleState(TypedDict, total=False):
     results: Annotated[list[ArticleResult], operator.add]
     errors: Annotated[list[str], operator.add]
     token_usage: Annotated[list[TokenUsage], operator.add]
+    new_terms: Annotated[list[dict], operator.add]

@@ -27,5 +27,7 @@ def output_writer(state: ArticleState) -> dict:
         output_path=str(path),
         n_paragraphs=len(pairs),
         n_failed=sum(1 for p in pairs if p["failed"]),
+        mode=state.get("output_mode", "bilingual"),
+        pairs=pairs,
     )
     return {"results": [result]}

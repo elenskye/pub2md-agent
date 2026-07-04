@@ -21,6 +21,12 @@ def _bilingual_body(state: ArticleState, parts: list[str]) -> None:
         if zh_subtitle and zh_subtitle != FAILED_MARK:
             parts.append(f"**{zh_subtitle}**")
     for pair in state["translated_paragraphs"]:
+        if pair.get("is_heading"):
+            if pair["failed"] or pair["zh"].strip() == pair["en"].strip():
+                parts.append(f"## {pair['en']}")
+            else:
+                parts.append(f"## {pair['zh']} | {pair['en']}")
+            continue
         parts.append(pair["en"])
         if pair["failed"]:
             parts.append(f"{FAILED_MARK}\n\n{pair['en']}")
@@ -35,7 +41,7 @@ def _chinese_only_body(state: ArticleState, parts: list[str]) -> None:
     if zh_subtitle:
         parts.append(f"**{zh_subtitle}**")
     for pair in state["translated_paragraphs"]:
-        parts.append(pair["zh"])
+        parts.append(f"## {pair['zh']}" if pair.get("is_heading") else pair["zh"])
 
 
 def formatter(state: ArticleState) -> dict:
