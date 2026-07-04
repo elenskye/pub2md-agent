@@ -96,6 +96,26 @@ def latin_han_counts(text: str) -> tuple[int, int]:
     return len(_LATIN_RE.findall(text)), len(_HAN_RE.findall(text))
 
 
+_WORD_RE = re.compile(r"[A-Za-z]{2,}")
+_MATH_RE = re.compile(r"[∈∉∑∏√∫≈≠≤≥±×⋅∗∘→←↔∂∇‖⊤∀∃αβγδθλμσπΣΠ]")
+
+
+def is_non_prose(text: str) -> bool:
+    """Formula debris and reference wraps from academic PDFs — segments that
+    should pass through verbatim rather than being 'translated'."""
+    if _HAN_RE.search(text):
+        return False
+    words = _WORD_RE.findall(text)
+    if len(words) < 2:
+        return True  # "(3)", "i i i", equation numbers
+    math = len(_MATH_RE.findall(text))
+    if math >= 2 and len(text) < 250:
+        return True
+    if math >= 1 and len(words) <= 4 and len(text) < 120:
+        return True
+    return False
+
+
 def drop_embedded_translation(lines: list[Line]) -> list[Line]:
     """In a majority-English document, Han lines are an embedded translation,
     which per spec 3.1 is always discarded (we re-translate from the English
@@ -170,14 +190,22 @@ def strip_noise(lines: list[Line], pages: list[PageGeometry]) -> list[Line]:
 
 
 def _cluster_columns(page_lines: list[Line]) -> list[list[Line]]:
-    """Group a page's lines into columns by x0 proximity, left to right."""
+    """Group a page's lines into columns, left to right. A line joins the
+    current column when its x0 is near the column's left edge OR falls
+    inside the column's horizontal span (median x1, so mid-row font-change
+    fragments stay put while an occasional full-width banner cannot glue
+    two columns together)."""
     ordered = sorted(page_lines, key=lambda ln: ln["x0"])
     columns: list[list[Line]] = []
     for ln in ordered:
-        if columns and ln["x0"] - max(l["x0"] for l in columns[-1]) <= COLUMN_GAP:
-            columns[-1].append(ln)
-        else:
-            columns.append([ln])
+        if columns:
+            col = columns[-1]
+            near_left = ln["x0"] - max(l["x0"] for l in col) <= COLUMN_GAP
+            within_span = ln["x0"] <= statistics.median(l["x1"] for l in col) - 1.0
+            if near_left or within_span:
+                col.append(ln)
+                continue
+        columns.append([ln])
     for col in columns:
         col.sort(key=lambda ln: (ln["y0"], ln["x0"]))
     return columns
@@ -287,13 +315,73 @@ def _merge_continuations(paragraphs: list[Paragraph]) -> list[Paragraph]:
 
 
 def _mark_headings(paragraphs: list[Paragraph]) -> None:
-    """Headings are noticeably larger than the length-weighted body font."""
+    """Two heading signals: font size noticeably above the length-weighted
+    body median, or heading-shaped text (short standalone line without
+    sentence-final punctuation) for crossheads set in the body font."""
     sizes = [p["font_size"] for p in paragraphs for _ in range(len(p["text"]))]
     if not sizes:
         return
     body_size = statistics.median(sizes)
+    _SHAPE_BLOCKLIST = set("=·∗†‡") | set("∈∑∏√∫≈≤≥±×")
+    prev: Paragraph | None = None
     for p in paragraphs:
-        p["is_heading"] = p["font_size"] >= body_size + 1.5 and len(p["text"]) < 120
+        text = p["text"]
+        font_heading = p["font_size"] >= body_size + 1.5 and len(text) < 120
+        # Shape rule for crossheads set in the body font. Requires the
+        # previous paragraph to have finished its sentence — otherwise a
+        # capitalized continuation fragment ("Britain have all filmed...")
+        # would be mistaken for a heading — and no math/affiliation marks.
+        shape_heading = (
+            len(text) < 60
+            and len(_WORD_RE.findall(text)) + len(_HAN_RE.findall(text)) >= 2
+            and not text.endswith(_TERMINAL_PUNCT)
+            and bool(text[:1].isupper() or _HAN_RE.match(text[:1]))
+            and not (_SHAPE_BLOCKLIST & set(text))
+            and (prev is None or prev["text"].endswith(_TERMINAL_PUNCT))
+        )
+        # Only oversized-font headings may start a new article; shape-based
+        # crossheads share the body font and only affect rendering.
+        p["font_heading"] = font_heading
+        p["is_heading"] = font_heading or shape_heading
+        prev = p
+
+
+_CLAUSE_PUNCT = tuple("，、；：,;:")
+
+
+def _demote_split_callouts(paragraphs: list[Paragraph]) -> list[Paragraph]:
+    """A 'heading' ending mid-clause (internal clause punctuation, no
+    sentence-final punctuation) followed by a continuation line is a styled
+    callout split by the font-size rule, not a real heading — rejoin it.
+    Real titles that merely contain a comma survive because their next
+    paragraph starts a fresh sentence."""
+    out: list[Paragraph] = []
+    i = 0
+    while i < len(paragraphs):
+        p = paragraphs[i]
+        if (
+            p["is_heading"]
+            and i + 1 < len(paragraphs)
+            and not p["text"].endswith(_TERMINAL_PUNCT)
+            and any(c in p["text"] for c in _CLAUSE_PUNCT)
+        ):
+            nxt = paragraphs[i + 1]
+            continues = not nxt["is_heading"] and (
+                nxt["text"][:1].islower()
+                or bool(_HAN_RE.match(nxt["text"][:1]) and _HAN_RE.match(p["text"][-1:]))
+            )
+            if continues:
+                merged: Paragraph = dict(p)  # type: ignore[assignment]
+                merged["text"] = _join(p["text"], nxt["text"])
+                merged["is_heading"] = False
+                merged["font_heading"] = False
+                merged["font_size"] = nxt["font_size"]
+                out.append(merged)
+                i += 2
+                continue
+        out.append(p)
+        i += 1
+    return out
 
 
 def reflow(lines: list[Line]) -> list[Paragraph]:
@@ -304,6 +392,8 @@ def reflow(lines: list[Line]) -> list[Paragraph]:
         for col in _cluster_columns(page_lines):
             paragraphs.extend(_reflow_column(col))
     # Headings are marked before continuation merging so that a heading is
-    # never stitched into an adjacent paragraph.
+    # never stitched into an adjacent paragraph; split callouts are demoted
+    # (and rejoined) in between.
     _mark_headings(paragraphs)
+    paragraphs = _demote_split_callouts(paragraphs)
     return _merge_continuations(paragraphs)

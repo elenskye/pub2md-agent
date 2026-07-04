@@ -2,36 +2,957 @@
   "style": "economist",
   "description": "Seed terminology glossary for Economist-style translation. Terms grow over time as term_researcher resolves new terms via web search.",
   "terms": [
-    { "en": "quantitative easing", "zh": "量化宽松", "category": "monetary policy", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "monetary policy", "zh": "货币政策", "category": "monetary policy", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "fiscal policy", "zh": "财政政策", "category": "fiscal policy", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "interest rate", "zh": "利率", "category": "monetary policy", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "central bank", "zh": "央行", "category": "institution", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "Federal Reserve", "zh": "美联储", "category": "institution", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "inflation", "zh": "通货膨胀", "category": "macroeconomics", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "recession", "zh": "衰退", "category": "macroeconomics", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "soft landing", "zh": "软着陆", "category": "macroeconomics", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "hard landing", "zh": "硬着陆", "category": "macroeconomics", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "GDP", "zh": "国内生产总值（GDP）", "category": "macroeconomics", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "trade deficit", "zh": "贸易逆差", "category": "trade", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "trade surplus", "zh": "贸易顺差", "category": "trade", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "tariff", "zh": "关税", "category": "trade", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "protectionism", "zh": "保护主义", "category": "trade", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "multilateralism", "zh": "多边主义", "category": "international relations", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "geopolitics", "zh": "地缘政治", "category": "international relations", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "sanctions", "zh": "制裁", "category": "international relations", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "supply chain", "zh": "供应链", "category": "industry", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "labour market", "zh": "劳动力市场", "category": "employment", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "unemployment rate", "zh": "失业率", "category": "employment", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "antitrust", "zh": "反垄断", "category": "regulation", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "deregulation", "zh": "放松监管", "category": "regulation", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "venture capital", "zh": "风险投资", "category": "finance", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "private equity", "zh": "私募股权", "category": "finance", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "IPO", "zh": "首次公开募股（IPO）", "category": "finance", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "market capitalisation", "zh": "市值", "category": "finance", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "bond yield", "zh": "债券收益率", "category": "finance", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "unicorn (company)", "zh": "独角兽企业", "category": "finance", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "artificial intelligence", "zh": "人工智能", "category": "technology", "source": "seed", "added_date": "2026-07-03" },
-    { "en": "generative AI", "zh": "生成式人工智能", "category": "technology", "source": "seed", "added_date": "2026-07-03" }
+    {
+      "en": "quantitative easing",
+      "zh": "量化宽松",
+      "category": "monetary policy",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "monetary policy",
+      "zh": "货币政策",
+      "category": "monetary policy",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "fiscal policy",
+      "zh": "财政政策",
+      "category": "fiscal policy",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "interest rate",
+      "zh": "利率",
+      "category": "monetary policy",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "central bank",
+      "zh": "央行",
+      "category": "institution",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Federal Reserve",
+      "zh": "美联储",
+      "category": "institution",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "inflation",
+      "zh": "通货膨胀",
+      "category": "macroeconomics",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "recession",
+      "zh": "衰退",
+      "category": "macroeconomics",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "soft landing",
+      "zh": "软着陆",
+      "category": "macroeconomics",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "hard landing",
+      "zh": "硬着陆",
+      "category": "macroeconomics",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "GDP",
+      "zh": "国内生产总值（GDP）",
+      "category": "macroeconomics",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "trade deficit",
+      "zh": "贸易逆差",
+      "category": "trade",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "trade surplus",
+      "zh": "贸易顺差",
+      "category": "trade",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "tariff",
+      "zh": "关税",
+      "category": "trade",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "protectionism",
+      "zh": "保护主义",
+      "category": "trade",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "multilateralism",
+      "zh": "多边主义",
+      "category": "international relations",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "geopolitics",
+      "zh": "地缘政治",
+      "category": "international relations",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "sanctions",
+      "zh": "制裁",
+      "category": "international relations",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "supply chain",
+      "zh": "供应链",
+      "category": "industry",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "labour market",
+      "zh": "劳动力市场",
+      "category": "employment",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "unemployment rate",
+      "zh": "失业率",
+      "category": "employment",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "antitrust",
+      "zh": "反垄断",
+      "category": "regulation",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "deregulation",
+      "zh": "放松监管",
+      "category": "regulation",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "venture capital",
+      "zh": "风险投资",
+      "category": "finance",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "private equity",
+      "zh": "私募股权",
+      "category": "finance",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "IPO",
+      "zh": "首次公开募股（IPO）",
+      "category": "finance",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "market capitalisation",
+      "zh": "市值",
+      "category": "finance",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "bond yield",
+      "zh": "债券收益率",
+      "category": "finance",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "unicorn (company)",
+      "zh": "独角兽企业",
+      "category": "finance",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "artificial intelligence",
+      "zh": "人工智能",
+      "category": "technology",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "generative AI",
+      "zh": "生成式人工智能",
+      "category": "technology",
+      "source": "seed",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Posse Comitatus Act",
+      "zh": "《地方武装力量法》（Posse Comitatus Act）",
+      "category": "Law",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "National Guard",
+      "zh": "国民警卫队",
+      "category": "Military",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "crowd control",
+      "zh": "人群控制",
+      "category": "Public Safety",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "riot control",
+      "zh": "防暴",
+      "category": "Public Safety",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Operation Excalibur",
+      "zh": "神剑行动（Operation Excalibur）",
+      "category": "Military Operation",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "constitutional exception",
+      "zh": "宪法例外",
+      "category": "Law",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Task Force 51",
+      "zh": "第51特遣部队（Task Force 51）",
+      "category": "Military",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "U.S. Army's Northern Command",
+      "zh": "美国北方司令部（USNORTHCOM）",
+      "category": "Military Command",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "executive order",
+      "zh": "行政命令",
+      "category": "policy",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "ICE",
+      "zh": "移民及海关执法局（ICE）",
+      "category": "law enforcement",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "injunction",
+      "zh": "禁令",
+      "category": "law",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Pentagon",
+      "zh": "五角大楼",
+      "category": "defense",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Equal Justice Initiative (EJI)",
+      "zh": "平等司法倡议（EJI）",
+      "category": "Organization",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "legacy sites",
+      "zh": "历史遗址",
+      "category": "Noun Phrase",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "financial-literacy programmes",
+      "zh": "金融素养项目",
+      "category": "Noun Phrase",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "midnight basketball",
+      "zh": "午夜篮球",
+      "category": "Program",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Montgomery Regional Chamber of Commerce",
+      "zh": "蒙哥马利地区商会",
+      "category": "Organization",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Smithsonian Institution",
+      "zh": "史密森尼学会",
+      "category": "Organization",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Lime bike",
+      "zh": "Lime自行车",
+      "category": "brand",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Lime leg",
+      "zh": "Lime车腿",
+      "category": "part",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "convenience absolutism",
+      "zh": "便利绝对主义",
+      "category": "concept",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "dockless",
+      "zh": "无桩",
+      "category": "adjective",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "micro-mobility",
+      "zh": "微出行",
+      "category": "concept",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "cashflow positive",
+      "zh": "正现金流",
+      "category": "financial term",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Boris bikes",
+      "zh": "鲍里斯自行车",
+      "category": "product",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "agentic commerce",
+      "zh": "代理式商务",
+      "category": "concept",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "animal spirits",
+      "zh": "动物精神",
+      "category": "economics",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "official development assistance",
+      "zh": "官方发展援助（ODA）",
+      "category": "development",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Warsaw Pact",
+      "zh": "华沙条约",
+      "category": "history",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "OECD",
+      "zh": "经济合作与发展组织（OECD）",
+      "category": "organization",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "transistor",
+      "zh": "晶体管",
+      "category": "technology",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "computer chip",
+      "zh": "计算机芯片",
+      "category": "technology",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "cold war",
+      "zh": "冷战",
+      "category": "history",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "post-war order",
+      "zh": "战后秩序",
+      "category": "politics",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "private-equity playbook",
+      "zh": "私募股权操作手册",
+      "category": "finance",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "tech conglomerate",
+      "zh": "科技集团",
+      "category": "business",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "annualised return on capital",
+      "zh": "年化资本回报率",
+      "category": "finance",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "EBITDA",
+      "zh": "息税折旧摊销前利润（EBITDA）",
+      "category": "finance",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "subscription revenue",
+      "zh": "订阅收入",
+      "category": "business",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "debt-to-EBITDA ratio",
+      "zh": "债务与EBITDA比率（Debt-to-EBITDA ratio）",
+      "category": "finance",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "private-equity hybrid",
+      "zh": "私募股权混合体",
+      "category": "finance",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "shake-out",
+      "zh": "洗牌",
+      "category": "business",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "semiquincentennial",
+      "zh": "二百五十周年纪念",
+      "category": "anniversary",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "American exceptionalism",
+      "zh": "美国例外主义",
+      "category": "ideology",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Corporation for Public Broadcasting",
+      "zh": "公共广播公司（CPB）",
+      "category": "organization",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "National Endowment for the Humanities",
+      "zh": "国家人文基金会（NEH）",
+      "category": "organization",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "National Endowment for the Arts",
+      "zh": "国家艺术基金会（NEA）",
+      "category": "organization",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Kennedy Center",
+      "zh": "肯尼迪表演艺术中心",
+      "category": "venue",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "National Portrait Gallery",
+      "zh": "国家肖像美术馆",
+      "category": "museum",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Library of Congress",
+      "zh": "国会图书馆",
+      "category": "library",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "security patrols",
+      "zh": "安全巡逻",
+      "category": "security",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "traffic control",
+      "zh": "交通管制",
+      "category": "traffic",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "show of force",
+      "zh": "武力展示",
+      "category": "military",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "emergency authority",
+      "zh": "紧急授权",
+      "category": "government",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "American carnage",
+      "zh": "美国浩劫",
+      "category": "political term",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Confederacy",
+      "zh": "南部邦联",
+      "category": "History",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Restoring Truth and Sanity to American History",
+      "zh": "恢复美国历史的真相与理智",
+      "category": "Executive Order",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "creative destruction",
+      "zh": "创造性破坏",
+      "category": "Economics",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "tech bubble",
+      "zh": "科技泡沫",
+      "category": "Technology",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "shared bikes",
+      "zh": "共享单车",
+      "category": "Transport",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "delivery economy",
+      "zh": "配送经济",
+      "category": "Logistics",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Uber",
+      "zh": "优步",
+      "category": "Transport",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "electric bike",
+      "zh": "电动自行车",
+      "category": "Transport",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "e-scooter",
+      "zh": "电动滑板车",
+      "category": "Transport",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Nasdaq",
+      "zh": "纳斯达克（Nasdaq）",
+      "category": "Stock Exchange",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Bending Spoons",
+      "zh": "Bending Spoons",
+      "category": "Company",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Spooners",
+      "zh": "Spooners（勺子用户）",
+      "category": "User Term",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "listed company",
+      "zh": "上市公司",
+      "category": "Corporate Status",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "asset manager",
+      "zh": "资产管理公司",
+      "category": "Financial Institution",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "carbon footprint",
+      "zh": "碳足迹",
+      "category": "Environment",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "asset depreciation",
+      "zh": "资产折旧",
+      "category": "Accounting",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "liberal capitalism",
+      "zh": "自由资本主义",
+      "category": "Political Economy",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "collectivism",
+      "zh": "集体主义",
+      "category": "Sociology",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "public markets",
+      "zh": "公开市场",
+      "category": "Finance",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "great powers",
+      "zh": "大国",
+      "category": "Politics",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "rule of law",
+      "zh": "法治",
+      "category": "Law",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "exchange rates",
+      "zh": "汇率",
+      "category": "Economics",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "industrial revolution",
+      "zh": "工业革命",
+      "category": "Economics",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "national laboratories",
+      "zh": "国家实验室",
+      "category": "Science",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "crude oil",
+      "zh": "原油",
+      "category": "Energy",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "natural gas",
+      "zh": "天然气",
+      "category": "Energy",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "nuclear weapons",
+      "zh": "核武器",
+      "category": "Military",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "shake-up",
+      "zh": "大改组",
+      "category": "reorganization",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "R&D",
+      "zh": "研发（R&D）",
+      "category": "research",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "annualised operating profits",
+      "zh": "年化营业利润",
+      "category": "finance",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "job cuts",
+      "zh": "裁员",
+      "category": "employment",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "turnaround",
+      "zh": "好转",
+      "category": "business",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "internet",
+      "zh": "互联网",
+      "category": "Technology",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "personal computer",
+      "zh": "个人电脑（PC）",
+      "category": "Technology",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "opium war",
+      "zh": "鸦片战争",
+      "category": "History",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "cotton gin",
+      "zh": "轧棉机",
+      "category": "Machine",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Spanish-American war",
+      "zh": "美西战争",
+      "category": "History",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Treaty of Paris",
+      "zh": "巴黎条约",
+      "category": "Treaty",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Qing dynasty",
+      "zh": "清朝",
+      "category": "Dynasty",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "civil war",
+      "zh": "内战",
+      "category": "Conflict",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "British Empire",
+      "zh": "大英帝国",
+      "category": "History",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "Russian Empire",
+      "zh": "俄罗斯帝国",
+      "category": "History",
+      "source": "web_search",
+      "added_date": "2026-07-03"
+    },
+    {
+      "en": "portfolio",
+      "zh": "投资组合",
+      "category": "finance",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "electric vehicle",
+      "zh": "电动汽车",
+      "category": "Automotive",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "state failure",
+      "zh": "国家失败",
+      "category": "Political Science",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "cradle of the Confederacy",
+      "zh": "南方邦联的摇篮",
+      "category": "history",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "urban reinvention",
+      "zh": "城市再造",
+      "category": "urban planning",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "high-end tourism",
+      "zh": "高端旅游",
+      "category": "tourism",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "private financing",
+      "zh": "私人融资",
+      "category": "finance",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "financial position",
+      "zh": "财务状况",
+      "category": "finance",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    }
   ]
 }
