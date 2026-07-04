@@ -39,7 +39,7 @@ def _subtitle_of(title: str, paras: list[Paragraph]) -> str:
     """The paragraph right after a title is a standfirst if it is short,
     does not end like a body sentence, and is written in the same script as
     the title (a Latin-only line under a Chinese title is leftover junk)."""
-    if not paras:
+    if not paras or paras[0].get("special"):
         return ""
     cand = paras[0]["text"]
     if len(cand) > 160 or cand.endswith((".", "。", "！", "？")):

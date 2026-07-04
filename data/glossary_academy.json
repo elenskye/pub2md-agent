@@ -355,6 +355,83 @@
       "category": "Deep Learning",
       "source": "web_search",
       "added_date": "2026-07-04"
+    },
+    {
+      "en": "tensor2tensor",
+      "zh": "Tensor2Tensor",
+      "category": "model",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "ByteNet",
+      "zh": "ByteNet",
+      "category": "model",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "ConvS2S",
+      "zh": "ConvS2S",
+      "category": "model",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "Extended Neural GPU",
+      "zh": "Extended Neural GPU",
+      "category": "model",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "intra-attention",
+      "zh": "内部注意力",
+      "category": "attention",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "reading comprehension",
+      "zh": "阅读理解",
+      "category": "task",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "abstractive summarization",
+      "zh": "抽象式摘要",
+      "category": "summarization",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "textual entailment",
+      "zh": "文本蕴含",
+      "category": "task",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "question answering",
+      "zh": "问答",
+      "category": "task",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "P100",
+      "zh": "P100",
+      "category": "hardware",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "NIPS",
+      "zh": "NIPS",
+      "category": "conference",
+      "source": "web_search",
+      "added_date": "2026-07-04"
     }
   ]
 }

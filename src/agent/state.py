@@ -4,7 +4,7 @@ import operator
 from typing import Annotated, TypedDict
 
 
-class Line(TypedDict):
+class Line(TypedDict, total=False):
     """One text line extracted from the PDF, with layout coordinates."""
 
     page: int
@@ -14,6 +14,9 @@ class Line(TypedDict):
     y1: float
     text: str
     font_size: float
+    math_only: bool  # every span set in a LaTeX math font (display math)
+    special: str  # synthetic marker: "formula" | "table"
+    clip: tuple  # (x0, y0, x1, y1) crop rect for special="formula"
 
 
 class PageGeometry(TypedDict):
@@ -21,7 +24,7 @@ class PageGeometry(TypedDict):
     height: float
 
 
-class Paragraph(TypedDict):
+class Paragraph(TypedDict, total=False):
     """A reflowed paragraph after noise stripping."""
 
     text: str
@@ -29,6 +32,8 @@ class Paragraph(TypedDict):
     font_size: float
     is_heading: bool  # any heading signal — used for rendering
     font_heading: bool  # oversized font only — eligible as an article boundary
+    special: str  # "formula" | "table" — set on synthetic region paragraphs
+    clip: tuple  # crop rect for special="formula"
 
 
 class Article(TypedDict):

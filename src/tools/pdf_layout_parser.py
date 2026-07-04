@@ -38,6 +38,27 @@ _HAN_RE = re.compile(r"[一-鿿㐀-䶿]")
 _LATIN_RE = re.compile(r"[A-Za-z]")
 
 
+# LaTeX math font families (Computer Modern & friends). A line whose spans
+# all come from these fonts is display-math content, not prose — body text
+# in modern papers uses a text family (Nimbus, Times, ...). CMMI/CMSY/CMEX
+# presence is required so that an old paper with a CMR text body is not
+# flagged wholesale.
+_MATH_FONT_RE = re.compile(r"^(CM|MSAM|MSBM|Euler|.*Math)", re.IGNORECASE)
+_MATH_CORE_RE = re.compile(r"^(CMMI|CMSY|CMEX)", re.IGNORECASE)
+
+
+def _is_math_only(spans: list[dict]) -> bool:
+    """Display-math line: math-font glyphs dominate (a stray text-font span
+    like the "PE" in PE(pos, 2i) must not disqualify the line) and at least
+    one core math font (italic math / symbols) is present."""
+    total = sum(len(s["text"]) for s in spans)
+    if not total:
+        return False
+    math_chars = sum(len(s["text"]) for s in spans if _MATH_FONT_RE.match(s["font"]))
+    has_core = any(_MATH_CORE_RE.match(s["font"]) for s in spans)
+    return has_core and math_chars / total >= 0.85
+
+
 def extract_lines(pdf_path: str) -> tuple[list[Line], list[PageGeometry]]:
     try:
         doc = pymupdf.open(pdf_path)
@@ -67,6 +88,7 @@ def extract_lines(pdf_path: str) -> tuple[list[Line], list[PageGeometry]]:
                         y1=y1,
                         text=text,
                         font_size=max(span["size"] for span in ln["spans"]),
+                        math_only=_is_math_only(ln["spans"]),
                     )
                 )
     doc.close()
@@ -189,6 +211,109 @@ def strip_noise(lines: list[Line], pages: list[PageGeometry]) -> list[Line]:
     return kept
 
 
+_EQ_NUMBER_RE = re.compile(r"^\(\d{1,3}\)$")
+
+# A table body is >=3 consecutive visual rows each holding >=3 separate line
+# fragments (aligned columns). Two-column magazine layouts produce at most 2
+# fragments per row and single-column prose 1, so both stay clear of it.
+_TABLE_MIN_ROWS = 3
+_TABLE_MIN_FRAGMENTS = 3
+
+
+def _rows_by_band(page_lines: list[Line], tol: float = 4.0) -> list[list[Line]]:
+    rows: list[list[Line]] = []
+    for ln in sorted(page_lines, key=lambda l: (l["y0"], l["x0"])):
+        if rows and abs(ln["y0"] - rows[-1][0]["y0"]) <= tol:
+            rows[-1].append(ln)
+        else:
+            rows.append([ln])
+    return rows
+
+
+def mask_special_regions(lines: list[Line], pages: list[PageGeometry]) -> list[Line]:
+    """Replace display-formula regions and table bodies with single synthetic
+    lines so downstream reflow treats each as one indivisible paragraph.
+
+    - Formula region: a run of vertically-adjacent math-only fragments (plus
+      any equation number "(N)" sharing a row); the synthetic line keeps the
+      raw glyph text and a crop rect for the VLM transcriber.
+    - Table body: a run of rows with 3+ fragments each; replaced by a
+      placeholder line (captions sit outside the run and survive).
+    """
+    masked: list[Line] = []
+    for pno in sorted({ln["page"] for ln in lines}):
+        page_lines = [ln for ln in lines if ln["page"] == pno]
+        rows = _rows_by_band(page_lines)
+
+        # Table rows first: rows with 3+ fragments are "strong" evidence;
+        # strong rows within 2 rows of each other form one region (wrapped
+        # header cells like a lone "Operations" line sit between strong
+        # rows and are swallowed).
+        strong = [k for k, row in enumerate(rows) if len(row) >= _TABLE_MIN_FRAGMENTS]
+        table_rows: set[int] = set()
+        group: list[int] = []
+        for k in strong + [10**9]:
+            if group and k - group[-1] > 3:
+                if len(group) >= _TABLE_MIN_ROWS:
+                    table_rows.update(range(group[0], group[-1] + 1))
+                group = []
+            group.append(k)
+
+        def classify(k: int, row: list[Line]) -> str:
+            if k in table_rows:
+                return "table"
+            non_eq = [l for l in row if not _EQ_NUMBER_RE.match(l["text"])]
+            if non_eq and all(l.get("math_only") for l in non_eq):
+                return "formula"
+            return "text"
+
+        kinds = [classify(k, r) for k, r in enumerate(rows)]
+        i = 0
+        while i < len(rows):
+            kind = kinds[i]
+            j = i
+            while j < len(kinds) and kinds[j] == kind:
+                j += 1
+            run = [ln for row in rows[i:j] for ln in row]
+            if kind == "formula":
+                masked.append(
+                    Line(
+                        page=pno,
+                        x0=min(l["x0"] for l in run),
+                        y0=min(l["y0"] for l in run),
+                        x1=max(l["x1"] for l in run),
+                        y1=max(l["y1"] for l in run),
+                        text=" ".join(l["text"] for l in run),
+                        font_size=max(l["font_size"] for l in run),
+                        special="formula",
+                        clip=(
+                            min(l["x0"] for l in run),
+                            min(l["y0"] for l in run),
+                            max(l["x1"] for l in run),
+                            max(l["y1"] for l in run),
+                        ),
+                    )
+                )
+            elif kind == "table":
+                first = run[0]
+                masked.append(
+                    Line(
+                        page=pno,
+                        x0=first["x0"],
+                        y0=first["y0"],
+                        x1=max(l["x1"] for l in run),
+                        y1=max(l["y1"] for l in run),
+                        text="[table omitted]",
+                        font_size=first["font_size"],
+                        special="table",
+                    )
+                )
+            else:
+                masked.extend(run)
+            i = j
+    return masked
+
+
 def _cluster_columns(page_lines: list[Line]) -> list[list[Line]]:
     """Group a page's lines into columns, left to right. A line joins the
     current column when its x0 is near the column's left edge OR falls
@@ -263,6 +388,8 @@ def _reflow_column(col: list[Line]) -> list[Paragraph]:
         new_para = (
             current is None
             or prev is None
+            # Formula/table region lines always stand alone.
+            or bool(ln.get("special") or prev.get("special"))
             or (ln["y0"] - prev["y0"]) > line_gap * PARA_GAP_RATIO
             or abs(ln["font_size"] - current["font_size"]) > 1.0
             # Deficit rule only on a real row advance: PyMuPDF splits one
@@ -280,6 +407,10 @@ def _reflow_column(col: list[Line]) -> list[Paragraph]:
             current = Paragraph(
                 text=ln["text"], page=ln["page"], font_size=ln["font_size"], is_heading=False
             )
+            if ln.get("special"):
+                current["special"] = ln["special"]
+                if "clip" in ln:
+                    current["clip"] = ln["clip"]
         else:
             current["text"] = _join(current["text"], ln["text"])
         prev = ln
@@ -303,6 +434,8 @@ def _merge_continuations(paragraphs: list[Paragraph]) -> list[Paragraph]:
             continuation = (
                 not prev["is_heading"]
                 and not para["is_heading"]
+                and not prev.get("special")
+                and not para.get("special")
                 and not prev["text"].endswith(_TERMINAL_PUNCT)
                 and continues
                 and abs(prev["font_size"] - para["font_size"]) <= 1.0
@@ -342,7 +475,7 @@ def _mark_headings(paragraphs: list[Paragraph]) -> None:
         # Only oversized-font headings may start a new article; shape-based
         # crossheads share the body font and only affect rendering.
         p["font_heading"] = font_heading
-        p["is_heading"] = font_heading or shape_heading
+        p["is_heading"] = (font_heading or shape_heading) and not p.get("special")
         prev = p
 
 

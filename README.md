@@ -7,9 +7,11 @@ web-search-backed terminology that stays consistent across every run, and a
 quantitative eval against a single-shot baseline.
 
 > Portfolio project. Full requirements and design decisions live in
-> [CLAUDE.md](CLAUDE.md). Status: **Phase 4 complete** (layout fixes,
-> observability, unit tests, docs). Planned Phase 5: LaTeX formula
-> extraction and table handling.
+> [CLAUDE.md](CLAUDE.md). Status: **Phase 5 complete** — terminology
+> quality gates (grounding + verifier rubric + glossary audit), display
+> formulas transcribed to LaTeX via a configurable vision model (or kept as
+> placeholders when no VLM is configured), and table bodies skipped with a
+> placeholder.
 
 ## Quickstart
 
@@ -28,8 +30,9 @@ estimated cost) and a structured record in `logs/`.
 
 ```mermaid
 flowchart TD
-    A[pdf_extractor<br/>PyMuPDF lines + coords + fonts] --> B[noise_stripper<br/>furniture removal + paragraph reflow]
-    B --> C[article_segmenter<br/>font-size candidates + LLM confirmation]
+    A[pdf_extractor<br/>PyMuPDF lines + coords + fonts] --> B[noise_stripper<br/>furniture removal + formula/table<br/>region masking + paragraph reflow]
+    B --> FT[formula_transcriber<br/>crop → VLM → $$LaTeX$$<br/>or placeholder fallback]
+    FT --> C[article_segmenter<br/>font-size candidates + LLM confirmation]
     C -- "Send fan-out<br/>(one branch per article)" --> D[lang_state_detector<br/>Latin/Han ratio + OpenCC round-trip]
     D -- English source --> E[en_text_isolator]
     E --> F[style_glossary_loader]
@@ -150,11 +153,23 @@ Things that broke on real PDFs and shaped the current design:
 - Set `LANGSMITH_TRACING=true` (+ API key) in `.env` for full step-level
   traces — no code changes required.
 
+## Formulas & tables
+
+Display formulas are detected via LaTeX math-font analysis (a line whose
+glyphs are ≥85% Computer-Modern-family with core math fonts present) plus
+row geometry, then cropped and sent to a vision model (`VLM_*` env block,
+any OpenAI-compatible endpoint) that returns `$$LaTeX$$`. Without a
+configured VLM the run still works: formulas stay as fenced `[formula]`
+placeholders. Table bodies (3+ rows of 3+ aligned fragments) are replaced
+with `[table omitted]` placeholders — skipping, not extraction, by design.
+Inline math inside prose is left untouched. Non-academic PDFs trigger
+neither path, so magazine/news runs pay zero extra time or cost.
+
 ## Known limitations
 
-- Formulas are extracted as glyph text and passed through verbatim (not
-  translated, not LaTeX); tables are not detected and their cells may reflow
-  into odd paragraphs. Both are scheduled for Phase 5.
+- Inline math inside prose paragraphs remains glyph text (only display
+  formulas are transcribed). Table content is skipped, not extracted; an
+  author-affiliation grid can look table-like and be skipped as one.
 - Scanned/image PDFs are explicitly out of scope (the run aborts).
 - The LLM-judge shares a model family with the translator; treat its scores
   as relative (agent vs baseline), not absolute quality.

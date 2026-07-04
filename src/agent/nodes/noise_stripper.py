@@ -8,10 +8,16 @@ text and are routed per-article to the OpenCC path downstream.
 """
 
 from src.agent.state import PipelineState
-from src.tools.pdf_layout_parser import drop_embedded_translation, reflow, strip_noise
+from src.tools.pdf_layout_parser import (
+    drop_embedded_translation,
+    mask_special_regions,
+    reflow,
+    strip_noise,
+)
 
 
 def noise_stripper(state: PipelineState) -> dict:
     kept = strip_noise(state["raw_blocks"], state["page_sizes"])
     kept = drop_embedded_translation(kept)
+    kept = mask_special_regions(kept, state["page_sizes"])
     return {"cleaned_text": reflow(kept)}

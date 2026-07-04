@@ -59,6 +59,37 @@ def load_settings() -> Settings:
     )
 
 
+@dataclass(frozen=True)
+class VLMSettings:
+    model: str
+    api_key: str
+    base_url: str | None
+
+
+def load_vlm_settings() -> VLMSettings | None:
+    """Multimodal model for formula transcription (VLM_* env block).
+    Returns None when unconfigured — callers degrade to placeholders."""
+    model = os.getenv("VLM_MODEL", "").strip()
+    api_key = os.getenv("VLM_API_KEY", "").strip()
+    if not model or not api_key:
+        return None
+    return VLMSettings(
+        model=model,
+        api_key=api_key,
+        base_url=os.getenv("VLM_BASE_URL", "").strip() or None,
+    )
+
+
+def get_vlm_model(vlm: VLMSettings, **overrides):
+    from langchain_openai import ChatOpenAI
+
+    kwargs: dict = dict(
+        model=vlm.model, api_key=vlm.api_key, base_url=vlm.base_url, max_tokens=512, temperature=0
+    )
+    kwargs.update(overrides)
+    return ChatOpenAI(**kwargs)
+
+
 def get_chat_model(settings: Settings | None = None, **overrides):
     """Build a ChatOpenAI client pointed at the configured provider."""
     from langchain_openai import ChatOpenAI
