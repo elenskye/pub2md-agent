@@ -145,9 +145,10 @@ Things that broke on real PDFs and shaped the current design:
 
 ## Testing & observability
 
-- `python -m pytest tests/` — 42 tests over the pure layout logic
-  (clustering, reflow, noise predicates), the JSON repair parser, the
-  glossary store (locking, first-in-wins), and the eval metrics.
+- `python -m pytest tests/` — 58 tests over the pure layout logic
+  (clustering, reflow, noise predicates, formula/table region masking), the
+  JSON repair parser, the glossary store (locking, first-in-wins), the term
+  grounding filter and verifier-verdict application, and the eval metrics.
 - Every CLI run writes `logs/run-<timestamp>.json` (provider/model, per
   article results, new terms, errors, tokens, cost, duration).
 - Set `LANGSMITH_TRACING=true` (+ API key) in `.env` for full step-level
@@ -158,12 +159,21 @@ Things that broke on real PDFs and shaped the current design:
 Display formulas are detected via LaTeX math-font analysis (a line whose
 glyphs are ≥85% Computer-Modern-family with core math fonts present) plus
 row geometry, then cropped and sent to a vision model (`VLM_*` env block,
-any OpenAI-compatible endpoint) that returns `$$LaTeX$$`. Without a
-configured VLM the run still works: formulas stay as fenced `[formula]`
-placeholders. Table bodies (3+ rows of 3+ aligned fragments) are replaced
-with `[table omitted]` placeholders — skipping, not extraction, by design.
-Inline math inside prose is left untouched. Non-academic PDFs trigger
-neither path, so magazine/news runs pay zero extra time or cost.
+any OpenAI-compatible endpoint, e.g. `qwen/qwen3-vl-8b-instruct` via
+OpenRouter — prefer a non-"thinking" variant: this is a mechanical
+transcription task, and reasoning tokens only add cost and latency for no
+accuracy benefit). Transcribed formulas are emitted as a block
+(`$$\n...\n$$`, delimiters on their own line — required by many Markdown
+note apps to recognise display math). Without a configured VLM the run
+still works: formulas stay as fenced `[formula]` placeholders. Table bodies
+(3+ rows of 3+ aligned fragments) are replaced with `[table omitted]`
+placeholders — skipping, not extraction, by design. Non-academic PDFs
+trigger neither path, so magazine/news runs pay zero extra time or cost.
+
+Inline math inside translated prose (e.g. `$d_{\text{model}}$` next to CJK
+text) is left untouched by the model but padded with a space on each side
+by the formatter — glued to a CJK character, several Markdown note apps
+fail to recognise the `$` delimiter and mis-render the surrounding text.
 
 ## Known limitations
 

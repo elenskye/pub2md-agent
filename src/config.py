@@ -3,7 +3,7 @@
 Provider / model / pricing all come from .env — never hardcoded (spec 4.1).
 Env vars are provider-scoped: LLM_PROVIDER selects a block of
 <PROVIDER>_MODEL / <PROVIDER>_API_KEY / <PROVIDER>_BASE_URL variables
-(e.g. DEEPSEEK_*, OPENAI_*, OPENROUTE_*). Every provider is assumed
+(e.g. DEEPSEEK_*, OPENAI_*, OPENROUTER_*). Every provider is assumed
 OpenAI-compatible, so no provider-specific SDK is needed.
 """
 
@@ -17,7 +17,7 @@ load_dotenv()
 # Fallback base URLs for providers whose endpoint is fixed and public.
 _DEFAULT_BASE_URLS = {
     "deepseek": "https://api.deepseek.com",
-    "openroute": "https://openrouter.ai/api/v1",
+    "openrouter": "https://openrouter.ai/api/v1",
     "openai": None,  # langchain-openai default
 }
 
