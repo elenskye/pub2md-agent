@@ -33,10 +33,12 @@ flowchart TD
     C -- "Send fan-out<br/>(one branch per article)" --> D[lang_state_detector<br/>Latin/Han ratio + OpenCC round-trip]
     D -- English source --> E[en_text_isolator]
     E --> F[style_glossary_loader]
-    F --> G[term_candidate_extractor]
-    G -- new terms --> H[term_researcher<br/>Tavily, style-shaped queries]
+    F --> G[term_candidate_extractor<br/>+ grounding filter]
+    G -- candidates --> V[term_verifier<br/>keep / rewrite / reject rubric]
+    V -- verified --> H[term_researcher<br/>Tavily, style-shaped queries]
     H --> I[glossary_updater<br/>locked write, first-in wins]
     G -- none --> J[translator<br/>batched, JSON mode,<br/>glossary constraints]
+    V -- none --> J
     I --> J
     D -- Chinese source --> K[opencc_converter<br/>tw2sp → Simplified only]
     J --> L[formatter]
@@ -54,6 +56,12 @@ flowchart TD
 - **Cost control**: batched translation with bounded prompts/max_tokens,
   glossary constraints filtered to terms present in the article, search
   snippets trimmed before entering context, per-run token/cost accounting.
+- **Terminology quality gates**: term extraction is recall-oriented, so a
+  deterministic grounding filter (the candidate must occur verbatim in the
+  article) and a keep/rewrite/reject verifier rubric gate every candidate
+  before any web search is spent on it. `python -m scripts.audit_glossary`
+  re-judges already-researched glossary entries with the same rubric and
+  archives rejects reversibly to `glossary_<style>_rejected.json`.
 
 ## Evaluation (spec §7)
 
@@ -65,11 +73,16 @@ one academic paper):
 
 | Metric | Agent | Baseline |
 |---|---|---|
-| Terminology consistency (corpus, headline) | **92.9%** | 0% |
+| Terminology consistency (corpus, headline) | **81.8%** (33 terms, strict all-occurrences) | 0% |
 | Multi-article split accuracy | 5/5 | 4/5 (cannot split) |
-| Glossary adherence per occurrence | 0.98–1.00 | 0.00–0.89 |
+| Glossary adherence per occurrence | 0.94–1.00 (175 occurrences) | 0.00–0.89 |
 | LLM-judge accuracy (1–5) | 4.2–4.8 | 1.0–3.0 |
 | Failed paragraphs | 0 | — |
+
+The consistency denominator grew from 14 to 33 multi-occurrence terms after
+the glossary quality audit (more real, recurring terms are now measured); a
+term counts as consistent only if *every* occurrence uses the glossary
+rendering.
 
 Caveats: the judge is the same model family as the translator (self-grading
 bias), and baseline adherence is doc-level because a single blob offers no
@@ -116,6 +129,16 @@ Things that broke on real PDFs and shaped the current design:
    ("Status/Archive/Pin") plus their same-row values, and tiny-font print
    footers, are stripped structurally (label rows, font far below body
    median) rather than by content heuristics.
+9. **Recall-oriented term extraction floods the glossary with junk.** The
+   single-call extractor nominated everyday collocations ("state failure",
+   "crowd control"), one-off rhetoric ("American carnage") and rhetorical
+   wrappers ("cradle of the Confederacy" instead of "Confederacy") — 40+ of
+   105 researched entries failed a later audit. Fix: a generate–critique
+   split. A deterministic grounding gate kills hallucinations (the term must
+   literally occur in the article), then a `term_verifier` node judges each
+   candidate against a keep/rewrite/reject rubric before any web search is
+   spent on it. The same rubric powers `scripts/audit_glossary.py`, which
+   retro-cleaned the glossary (rejected entries are archived, not deleted).
 
 ## Testing & observability
 

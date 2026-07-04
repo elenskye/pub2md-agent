@@ -1,0 +1,42 @@
+[
+  {
+    "en": "parallelization",
+    "zh": "并行化",
+    "category": "Parallel Computing",
+    "source": "web_search",
+    "added_date": "2026-07-03",
+    "verdict": "reject",
+    "minimal_form": "None",
+    "audited_date": "2026-07-04"
+  },
+  {
+    "en": "machine translation",
+    "zh": "机器翻译",
+    "category": "Natural Language Processing",
+    "source": "web_search",
+    "added_date": "2026-07-03",
+    "verdict": "reject",
+    "minimal_form": "None",
+    "audited_date": "2026-07-04"
+  },
+  {
+    "en": "sequence modeling",
+    "zh": "序列建模",
+    "category": "Deep Learning",
+    "source": "web_search",
+    "added_date": "2026-07-03",
+    "verdict": "reject",
+    "minimal_form": "None",
+    "audited_date": "2026-07-04"
+  },
+  {
+    "en": "language modeling",
+    "zh": "语言建模",
+    "category": "Natural Language Processing",
+    "source": "web_search",
+    "added_date": "2026-07-03",
+    "verdict": "reject",
+    "minimal_form": "None",
+    "audited_date": "2026-07-04"
+  }
+]

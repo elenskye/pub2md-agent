@@ -5,9 +5,10 @@ Send fan-out runs one per-article subgraph per detected article:
 
     lang_state_detector
       ├─(has_english)→ en_text_isolator → style_glossary_loader
-      │      → term_candidate_extractor ─┬─(new terms)→ term_researcher
-      │                                  │                → glossary_updater ─┐
-      │                                  └─(none)─────────────────────────────┤
+      │      → term_candidate_extractor ─┬─(candidates)→ term_verifier
+      │                                  │    ─┬─(verified)→ term_researcher
+      │                                  │     │              → glossary_updater ─┐
+      │                                  └─(none)──────────────────────────────────┤
       │                                                          → translator ┤
       └─(chinese)→ opencc_converter ──────────────────────────────────────────┤
                                                                                ↓
@@ -32,6 +33,7 @@ from src.agent.nodes.pdf_extractor import pdf_extractor
 from src.agent.nodes.style_glossary_loader import style_glossary_loader
 from src.agent.nodes.term_candidate_extractor import term_candidate_extractor
 from src.agent.nodes.term_researcher import term_researcher
+from src.agent.nodes.term_verifier import term_verifier
 from src.agent.nodes.translator import translator
 from src.agent.state import ArticleOutput, ArticleState, PipelineState
 
@@ -54,6 +56,7 @@ def _build_article_subgraph():
     sub.add_node("en_text_isolator", en_text_isolator)
     sub.add_node("style_glossary_loader", style_glossary_loader)
     sub.add_node("term_candidate_extractor", term_candidate_extractor)
+    sub.add_node("term_verifier", term_verifier)
     sub.add_node("term_researcher", term_researcher)
     sub.add_node("glossary_updater", glossary_updater)
     sub.add_node("opencc_converter", opencc_converter)
@@ -71,6 +74,11 @@ def _build_article_subgraph():
     sub.add_edge("style_glossary_loader", "term_candidate_extractor")
     sub.add_conditional_edges(
         "term_candidate_extractor",
+        lambda s: "term_verifier" if s.get("term_candidates") else "translator",
+        ["term_verifier", "translator"],
+    )
+    sub.add_conditional_edges(
+        "term_verifier",
         lambda s: "term_researcher" if s.get("term_candidates") else "translator",
         ["term_researcher", "translator"],
     )
