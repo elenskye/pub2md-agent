@@ -2,9 +2,13 @@
 
 The LLM sees the article text (capped) plus the list of already-known
 glossary terms, and returns only NEW candidates — scoping against the loaded
-glossary avoids re-researching the same terms every run (spec 3.4). Failure
-here degrades gracefully: no candidates means translation proceeds with the
-existing glossary only.
+glossary avoids re-researching the same terms every run (spec 3.4).
+
+The LLM proposal list is recall-oriented and hallucinates; a deterministic
+grounding filter runs here (candidate must literally occur in the article),
+and the precision judgement happens in the downstream term_verifier node.
+Failure degrades gracefully: no candidates means translation proceeds with
+the existing glossary only.
 """
 
 from src.agent.state import ArticleState
@@ -13,6 +17,33 @@ from src.config import get_chat_model
 
 _MAX_TEXT_CHARS = 6000
 _MAX_CANDIDATES = 8
+_MAX_TERM_CHARS = 50
+_MAX_TERM_WORDS = 5
+
+
+def filter_candidates(raw_terms: list, article_text: str, glossary: dict) -> list[str]:
+    """Deterministic gate: drop hallucinated terms (not literally in the
+    article), over-long phrases, and terms the glossary already covers."""
+    text_lower = article_text.lower()
+    seen: set[str] = set()
+    kept: list[str] = []
+    for term in raw_terms:
+        if not isinstance(term, str):
+            continue
+        term = term.strip()
+        key = term.lower()
+        if (
+            not term
+            or key in seen
+            or key in glossary
+            or len(term) > _MAX_TERM_CHARS
+            or len(term.split()) > _MAX_TERM_WORDS
+            or key not in text_lower
+        ):
+            continue
+        seen.add(key)
+        kept.append(term)
+    return kept[:_MAX_CANDIDATES]
 
 _PROMPT = """\
 You are preparing a terminology glossary for translating an article into
@@ -38,8 +69,8 @@ Return ONLY a JSON object: {{"terms": ["...", ...]}} (empty list if none).
 def term_candidate_extractor(state: ArticleState) -> dict:
     article = state["article"]
     glossary = state.get("glossary", {})
-    text = "\n".join([article["title"], article["subtitle"], *state["english_paragraphs"]])
-    text = text[:_MAX_TEXT_CHARS]
+    full_text = "\n".join([article["title"], article["subtitle"], *state["english_paragraphs"]])
+    text = full_text[:_MAX_TEXT_CHARS]
     known = ", ".join(sorted(t["en"] for t in glossary.values())) or "(empty)"
 
     llm = get_chat_model(
@@ -63,11 +94,7 @@ def term_candidate_extractor(state: ArticleState) -> dict:
             }
         )
         raw = loads_with_repair(strip_fences(resp.content))
-        candidates = [
-            t.strip()
-            for t in raw.get("terms", [])
-            if isinstance(t, str) and t.strip() and t.strip().lower() not in glossary
-        ][:_MAX_CANDIDATES]
+        candidates = filter_candidates(raw.get("terms", []), full_text, glossary)
     except Exception as exc:
         errors.append(
             f"term_candidate_extractor[{article['title'][:40]}]: {exc}; "
