@@ -24,6 +24,7 @@ from langgraph.types import Send
 from src.agent.nodes.article_segmenter import article_segmenter
 from src.agent.nodes.en_text_isolator import en_text_isolator
 from src.agent.nodes.formatter import formatter
+from src.agent.nodes.formula_transcriber import formula_transcriber
 from src.agent.nodes.glossary_updater import glossary_updater
 from src.agent.nodes.lang_state_detector import lang_state_detector
 from src.agent.nodes.noise_stripper import noise_stripper
@@ -95,12 +96,14 @@ def build_graph():
     graph = StateGraph(PipelineState)
     graph.add_node("pdf_extractor", pdf_extractor)
     graph.add_node("noise_stripper", noise_stripper)
+    graph.add_node("formula_transcriber", formula_transcriber)
     graph.add_node("article_segmenter", article_segmenter)
     graph.add_node("process_article", _build_article_subgraph())
 
     graph.add_edge(START, "pdf_extractor")
     graph.add_edge("pdf_extractor", "noise_stripper")
-    graph.add_edge("noise_stripper", "article_segmenter")
+    graph.add_edge("noise_stripper", "formula_transcriber")
+    graph.add_edge("formula_transcriber", "article_segmenter")
     graph.add_conditional_edges("article_segmenter", _fan_out, ["process_article"])
     graph.add_edge("process_article", END)
     return graph.compile()

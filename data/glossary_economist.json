@@ -764,6 +764,27 @@
       "category": "financial education",
       "source": "web_search",
       "added_date": "2026-07-04"
+    },
+    {
+      "en": "White House of the Confederacy",
+      "zh": "邦联白宫",
+      "category": "historical-building",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "industrial revolution",
+      "zh": "工业革命",
+      "category": "economics",
+      "source": "web_search",
+      "added_date": "2026-07-04"
+    },
+    {
+      "en": "Fulda Gap",
+      "zh": "富尔达缺口",
+      "category": "military",
+      "source": "web_search",
+      "added_date": "2026-07-04"
     }
   ]
 }

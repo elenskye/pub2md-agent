@@ -6,11 +6,36 @@ Two modes set upstream:
   Chinese only, no source-script text kept (owner's rule).
 """
 
+import re
 from datetime import date
 from pathlib import Path
 
 from src.agent.state import ArticleState
 from src.agent.nodes.translator import FAILED_MARK
+
+# One-line inline math span ($...$), not the block delimiter $$. The
+# non-greedy body forbids $ and newlines, so $$...$$ blocks never match.
+_INLINE_MATH_RE = re.compile(r"(?<!\$)(\$[^$\n]+?\$)(?!\$)")
+
+
+def _pad_inline_math(text: str) -> str:
+    """Ensure a space on both sides of inline math. Without it, a `$`
+    glued to a CJK character is not recognised as a math delimiter by many
+    Markdown note apps, which then mis-parse the surrounding text."""
+    out: list[str] = []
+    last = 0
+    for m in _INLINE_MATH_RE.finditer(text):
+        start, end = m.span()
+        before = text[last:start]
+        if before and not before[-1].isspace():
+            before += " "
+        out.append(before)
+        out.append(m.group(1))
+        if end < len(text) and not text[end].isspace():
+            out.append(" ")
+        last = end
+    out.append(text[last:])
+    return "".join(out)
 
 
 def _bilingual_body(state: ArticleState, parts: list[str]) -> None:
@@ -33,7 +58,7 @@ def _bilingual_body(state: ArticleState, parts: list[str]) -> None:
         elif pair["zh"].strip() != pair["en"].strip():
             # Untranslatable segments (author blocks, formulas) come back
             # verbatim — printing them twice helps nobody.
-            parts.append(pair["zh"])
+            parts.append(_pad_inline_math(pair["zh"]))
 
 
 def _chinese_only_body(state: ArticleState, parts: list[str]) -> None:
@@ -41,7 +66,9 @@ def _chinese_only_body(state: ArticleState, parts: list[str]) -> None:
     if zh_subtitle:
         parts.append(f"**{zh_subtitle}**")
     for pair in state["translated_paragraphs"]:
-        parts.append(f"## {pair['zh']}" if pair.get("is_heading") else pair["zh"])
+        parts.append(
+            f"## {pair['zh']}" if pair.get("is_heading") else _pad_inline_math(pair["zh"])
+        )
 
 
 def formatter(state: ArticleState) -> dict:
