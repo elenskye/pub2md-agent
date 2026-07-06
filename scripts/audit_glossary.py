@@ -1,9 +1,10 @@
 """One-time (re-runnable) audit of researched glossary entries.
 
 Judges every non-seed entry against the same rubric the term_verifier node
-applies to new candidates. Entries judged "reject" or "rewrite" are moved to
-data/glossary_<style>_rejected.json (with the verdict recorded) so the
-cleanup is reversible; seed entries are never touched.
+applies to new candidates. Entries judged "reject" or "rewrite" are removed
+from the SQLite store and archived (with the verdict recorded) to
+data/glossary_<style>_rejected.json so the cleanup is reversible; seed
+entries are never touched.
 
 Usage:
     python -m scripts.audit_glossary [--style economist] [--dry-run]
@@ -14,7 +15,8 @@ import json
 from datetime import date
 from pathlib import Path
 
-from src.tools.glossary_store import glossary_path, load_glossary
+from src.tools import glossary_store
+from src.tools.glossary_store import load_glossary, remove_terms
 from src.tools.term_rubric import judge_terms
 
 _BATCH = 30
@@ -36,36 +38,32 @@ def audit(style: str, dry_run: bool) -> int:
         print(f"  judged {i + len(chunk)}/{len(researched)} "
               f"(tokens {usage['input_tokens']}/{usage['output_tokens']})")
 
-    kept, removed = [], []
-    for term in doc["terms"]:
-        ruling = verdicts.get(term["en"].lower()) if term.get("source") != "seed" else None
+    to_remove: list[dict] = []
+    for term in researched:
+        ruling = verdicts.get(term["en"].lower())
         if ruling and ruling["verdict"] in ("reject", "rewrite"):
-            removed.append({**term, "verdict": ruling["verdict"],
-                            "minimal_form": ruling["term"], "audited_date": date.today().isoformat()})
-        else:
-            kept.append(term)
+            to_remove.append({**term, "verdict": ruling["verdict"],
+                              "minimal_form": ruling["term"],
+                              "audited_date": date.today().isoformat()})
 
-    print(f"\n[{style}] keep {len(kept)} · remove {len(removed)}")
-    for r in removed:
+    print(f"\n[{style}] keep {len(doc['terms']) - len(to_remove)} · remove {len(to_remove)}")
+    for r in to_remove:
         note = f" → {r['minimal_form']}" if r["verdict"] == "rewrite" else ""
         print(f"  - {r['en']} => {r['zh']}  [{r['verdict']}{note}]")
 
-    if dry_run or not removed:
+    if dry_run or not to_remove:
         print("(dry run — nothing written)" if dry_run else "(nothing to write)")
         return 0
 
-    doc["terms"] = kept
-    glossary_path(style).write_text(
-        json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
-    rejected_path = Path("data") / f"glossary_{style}_rejected.json"
+    removed = remove_terms(style, [r["en"] for r in to_remove])
+    rejected_path = Path(glossary_store.DATA_DIR) / f"glossary_{style}_rejected.json"
     existing = (
         json.loads(rejected_path.read_text(encoding="utf-8")) if rejected_path.exists() else []
     )
     rejected_path.write_text(
-        json.dumps(existing + removed, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        json.dumps(existing + to_remove, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
-    print(f"updated {glossary_path(style)} · archived to {rejected_path}")
+    print(f"removed {len(removed)} from the store · archived to {rejected_path}")
     return 0
 
 
