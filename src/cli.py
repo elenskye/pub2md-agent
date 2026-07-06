@@ -18,6 +18,7 @@ from pathlib import Path
 
 from src.agent.graph import build_graph
 from src.config import load_settings
+from src.styles import available_styles
 from src.tools.pdf_layout_parser import PDFExtractionError
 
 LOGS_DIR = Path("logs")
@@ -86,7 +87,7 @@ def main() -> int:
     parser.add_argument(
         "--style",
         default="economist",
-        choices=["economist", "academy"],
+        choices=available_styles(),  # derived from src/prompts/*_style.md
         help="Translation style preset",
     )
     args = parser.parse_args()
