@@ -18,6 +18,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
+from accounts.decorators import api_login_required
 from src.styles import available_styles
 
 from . import tasks
@@ -25,6 +26,7 @@ from .models import Job
 
 
 @require_GET
+@api_login_required
 def styles(request):
     return JsonResponse({"styles": available_styles()})
 
@@ -37,6 +39,7 @@ def _month_spend_usd() -> float:
 
 @csrf_exempt
 @require_POST
+@api_login_required
 def create_job(request):
     upload = request.FILES.get("pdf")
     style = request.POST.get("style", "economist")
@@ -67,6 +70,7 @@ def create_job(request):
 
 
 @require_GET
+@api_login_required
 def job_detail(request, job_id):
     try:
         job = Job.objects.get(id=job_id)
@@ -76,6 +80,7 @@ def job_detail(request, job_id):
 
 
 @require_GET
+@api_login_required
 def job_download(request, job_id):
     try:
         job = Job.objects.get(id=job_id)

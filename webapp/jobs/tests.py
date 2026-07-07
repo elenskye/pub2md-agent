@@ -4,6 +4,7 @@ here we test the HTTP layer's validation, guards and serialization."""
 
 from unittest.mock import patch
 
+from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 
@@ -16,7 +17,15 @@ def _upload(name="a.pdf", content=PDF_BYTES):
     return SimpleUploadedFile(name, content, content_type="application/pdf")
 
 
-class StylesApiTests(TestCase):
+class AuthedTestCase(TestCase):
+    """All jobs endpoints sit behind the login wall (Phase 3)."""
+
+    def setUp(self):
+        User.objects.create_user(username="guest1", password="pw-123456")
+        self.client.post("/api/login", {"username": "guest1", "password": "pw-123456"})
+
+
+class StylesApiTests(AuthedTestCase):
     def test_styles_derived_from_prompt_files(self):
         resp = self.client.get("/api/styles")
         self.assertEqual(resp.status_code, 200)
@@ -24,7 +33,7 @@ class StylesApiTests(TestCase):
 
 
 @patch("jobs.views.tasks.submit")
-class CreateJobTests(TestCase):
+class CreateJobTests(AuthedTestCase):
     def test_creates_job_and_submits(self, submit):
         resp = self.client.post("/api/jobs", {"pdf": _upload(), "style": "economist"})
         self.assertEqual(resp.status_code, 201)
@@ -61,7 +70,7 @@ class CreateJobTests(TestCase):
         submit.assert_not_called()
 
 
-class JobDetailTests(TestCase):
+class JobDetailTests(AuthedTestCase):
     def test_unknown_job_404(self):
         resp = self.client.get("/api/jobs/00000000-0000-0000-0000-000000000000")
         self.assertEqual(resp.status_code, 404)
@@ -73,7 +82,7 @@ class JobDetailTests(TestCase):
         self.assertEqual(resp.json()["style"], "academy")
 
 
-class DownloadTests(TestCase):
+class DownloadTests(AuthedTestCase):
     def test_download_before_done_409(self):
         job = Job.objects.create(style="economist", original_filename="p.pdf")
         resp = self.client.get(f"/api/jobs/{job.id}/download")
