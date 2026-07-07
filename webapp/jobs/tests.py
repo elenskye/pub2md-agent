@@ -2,11 +2,15 @@
 mocked out — pipeline correctness is covered by the Agent's own test suite;
 here we test the HTTP layer's validation, guards and serialization."""
 
+import tempfile
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
+
+# Keep test job files out of the real var/webapp/jobs directory.
+_TMP_JOBS = tempfile.mkdtemp(prefix="pub2md-test-jobs-")
 
 from .models import Job
 
@@ -17,6 +21,7 @@ def _upload(name="a.pdf", content=PDF_BYTES):
     return SimpleUploadedFile(name, content, content_type="application/pdf")
 
 
+@override_settings(JOBS_ROOT=_TMP_JOBS)
 class AuthedTestCase(TestCase):
     """All jobs endpoints sit behind the login wall (Phase 3)."""
 
@@ -97,6 +102,67 @@ class DownloadTests(AuthedTestCase):
         resp = self.client.get(f"/api/jobs/{job.id}/download")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("bilingual.zip", resp["Content-Disposition"])
+
+
+class JobsListTests(AuthedTestCase):
+    def test_recent_jobs_listed(self):
+        Job.objects.create(style="economist", original_filename="a.pdf")
+        Job.objects.create(style="academy", original_filename="b.pdf")
+        resp = self.client.get("/api/jobs?limit=1")
+        self.assertEqual(resp.status_code, 200)
+        jobs = resp.json()["jobs"]
+        self.assertEqual(len(jobs), 1)
+        self.assertEqual(jobs[0]["original_filename"], "b.pdf")  # newest first
+
+
+class JobFileTests(AuthedTestCase):
+    def _job_with_file(self):
+        job = Job.objects.create(
+            style="economist", original_filename="p.pdf", status=Job.Status.DONE
+        )
+        job.output_dir.mkdir(parents=True, exist_ok=True)
+        (job.output_dir / "00-hello.md").write_text("# 标题\n\n$$x^2$$\n", encoding="utf-8")
+        return job
+
+    def test_serves_markdown(self):
+        job = self._job_with_file()
+        resp = self.client.get(f"/api/jobs/{job.id}/files/00-hello.md")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("$$x^2$$", resp.content.decode())
+
+    def test_rejects_traversal_names(self):
+        job = self._job_with_file()
+        resp = self.client.get(f"/api/jobs/{job.id}/files/..%2F..%2Fsecret.md")
+        self.assertIn(resp.status_code, (400, 404))
+
+    def test_missing_file_404(self):
+        job = self._job_with_file()
+        resp = self.client.get(f"/api/jobs/{job.id}/files/99-none.md")
+        self.assertEqual(resp.status_code, 404)
+
+
+class CsrfEnforcedTests(TestCase):
+    def test_post_without_token_rejected(self):
+        from django.test import Client
+
+        User.objects.create_user(username="guest1", password="pw-123456")
+        strict = Client(enforce_csrf_checks=True)
+        resp = strict.post("/api/login", {"username": "guest1", "password": "pw-123456"})
+        self.assertEqual(resp.status_code, 403)
+
+    def test_post_with_token_accepted(self):
+        from django.test import Client
+
+        User.objects.create_user(username="guest1", password="pw-123456")
+        strict = Client(enforce_csrf_checks=True)
+        strict.get("/")  # index plants the csrftoken cookie
+        token = strict.cookies["csrftoken"].value
+        resp = strict.post(
+            "/api/login",
+            {"username": "guest1", "password": "pw-123456"},
+            headers={"X-CSRFToken": token},
+        )
+        self.assertEqual(resp.status_code, 200)
 
 
 class StageOfTests(TestCase):

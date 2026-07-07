@@ -1,0 +1,80 @@
+{% load static %}<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>pub2md · PDF → 双语 Markdown</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <link rel="stylesheet" href="{% static 'app.css' %}">
+</head>
+<body>
+  <header>
+    <h1>pub2md <span class="tagline">PDF → 双语 Markdown</span></h1>
+    <div id="user-box" hidden>
+      <span id="username"></span>
+      <button id="logout-btn" class="ghost">退出登录</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 登录 -->
+    <section id="login-card" class="card" hidden>
+      <h2>登录</h2>
+      <form id="login-form">
+        <label>账户 <input name="username" autocomplete="username" required></label>
+        <label>密码 <input name="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit">登录</button>
+        <p id="login-error" class="error" role="alert"></p>
+      </form>
+    </section>
+
+    <!-- 主功能 -->
+    <section id="app-card" class="card" hidden>
+      <h2>上传 PDF</h2>
+      <form id="job-form">
+        <input id="pdf-input" type="file" accept=".pdf" required>
+        <label>翻译风格
+          <select id="style-select"></select>
+        </label>
+        <button type="submit" id="start-btn">开始翻译</button>
+        <p id="job-error" class="error" role="alert"></p>
+      </form>
+
+      <div id="progress-box" hidden>
+        <div class="spinner"></div>
+        <span id="progress-text"></span>
+      </div>
+
+      <div id="result-box" hidden>
+        <h3>翻译结果 <small id="cost-note"></small></h3>
+        <ul id="article-list"></ul>
+        <button id="download-btn">下载全部 (.zip)</button>
+        <details id="new-terms-box" hidden>
+          <summary>本次新增术语</summary>
+          <ul id="new-terms-list"></ul>
+        </details>
+      </div>
+    </section>
+
+    <!-- 历史 -->
+    <section id="history-card" class="card" hidden>
+      <h2>最近任务</h2>
+      <ul id="history-list"></ul>
+    </section>
+
+    <!-- 预览 -->
+    <dialog id="preview-dialog">
+      <div class="dialog-bar">
+        <span id="preview-title"></span>
+        <button id="preview-close" class="ghost">关闭</button>
+      </div>
+      <article id="preview-body"></article>
+    </dialog>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+  <script src="{% static 'app.js' %}"></script>
+</body>
+</html>
