@@ -10,3 +10,5 @@ README_CHINESE.md
 logs/
 CLAUDE.md
 data/glossary.db*
+var/
+webapp/db.sqlite3

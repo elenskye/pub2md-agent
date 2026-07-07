@@ -5,7 +5,7 @@ from pathlib import Path
 
 from src.agent.state import ArticleResult, ArticleState
 
-OUTPUT_DIR = Path("outputs")
+DEFAULT_OUTPUT_DIR = "outputs"
 
 
 def _slugify(title: str, max_len: int = 60) -> str:
@@ -14,12 +14,13 @@ def _slugify(title: str, max_len: int = 60) -> str:
 
 
 def output_writer(state: ArticleState) -> dict:
-    OUTPUT_DIR.mkdir(exist_ok=True)
+    out_dir = Path(state.get("output_dir") or DEFAULT_OUTPUT_DIR)
+    out_dir.mkdir(parents=True, exist_ok=True)
     article = state["article"]
 
     # Index prefix keeps names unique within a run (branches run in parallel)
     # and makes re-runs overwrite deterministically instead of piling up -2/-3.
-    path = OUTPUT_DIR / f"{article['index']:02d}-{_slugify(article['title'])}.md"
+    path = out_dir / f"{article['index']:02d}-{_slugify(article['title'])}.md"
     path.write_text(state["bilingual_md"], encoding="utf-8")
     pairs = state["translated_paragraphs"]
     result = ArticleResult(

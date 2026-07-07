@@ -26,6 +26,25 @@ One `.md` file per detected article lands in `outputs/`; the run ends with a
 summary (files, failures, newly researched glossary terms, token usage and
 estimated cost) and a structured record in `logs/`.
 
+## Web app (2.0, in progress)
+
+A thin Django shell around the same Agent lives in `webapp/` — the Agent is
+imported in-process, never reimplemented:
+
+```bash
+cd webapp && python manage.py migrate && python manage.py runserver
+```
+
+JSON API: `GET /api/styles` (derived from `src/prompts/*_style.md` — adding
+a style needs no interface changes), `POST /api/jobs` (multipart PDF +
+style), `GET /api/jobs/<id>` (status/progress/result), and
+`GET /api/jobs/<id>/download` (zip). Jobs run on a single-worker thread
+pool (no extra infrastructure; runs are serialized), progress is derived
+from streaming the LangGraph run, uploads are size/page-capped, and a
+monthly budget ceiling (`PUB2MD_MONTHLY_BUDGET_USD`) guards the owner's API
+keys. Auth (two rotating accounts, single active session) and a browser UI
+are the next phases.
+
 ## Architecture
 
 ```mermaid

@@ -11,7 +11,15 @@ dependencies = [
     "python-dotenv>=1.0",
     "pydantic>=2.0",
     "opencc-python-reimplemented>=0.1",
+    "django>=5.0",
 ]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+testpaths = ["tests", "webapp"]
+pythonpath = [".", "webapp"]
+# Collect Django-convention tests.py alongside pytest-convention test_*.py.
+python_files = ["test_*.py", "tests.py"]
 
 [build-system]
 requires = ["setuptools>=68"]

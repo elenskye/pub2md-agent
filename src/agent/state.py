@@ -62,6 +62,7 @@ class TokenUsage(TypedDict):
 class PipelineState(TypedDict, total=False):
     pdf_path: str
     style: str
+    output_dir: str  # where .md files land; defaults to "outputs" (CLI)
     raw_blocks: list[Line]
     page_sizes: list[PageGeometry]
     cleaned_text: list[Paragraph]
@@ -88,6 +89,7 @@ class ArticleState(TypedDict, total=False):
 
     style: str
     pdf_path: str
+    output_dir: str
     article: Article
     has_english: bool
     script_state: str  # "none" | "simplified" | "traditional" | "mixed"

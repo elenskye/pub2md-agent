@@ -43,7 +43,12 @@ def _fan_out(state: PipelineState) -> list[Send]:
     return [
         Send(
             "process_article",
-            ArticleState(style=state["style"], pdf_path=state["pdf_path"], article=article),
+            ArticleState(
+                style=state["style"],
+                pdf_path=state["pdf_path"],
+                output_dir=state.get("output_dir", ""),
+                article=article,
+            ),
         )
         for article in state["articles"]
     ]
