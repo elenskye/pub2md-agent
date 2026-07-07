@@ -22,7 +22,10 @@ import sqlite3
 from datetime import date
 from pathlib import Path
 
-DATA_DIR = Path("data")
+# Anchored to the repo root (not the process CWD): the CLI runs from the
+# repo root but the Django app runs from webapp/, and a relative path would
+# silently give each its own empty store.
+DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 _DB_NAME = "glossary.db"
 
 _SCHEMA = """
