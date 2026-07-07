@@ -5,8 +5,8 @@ POST /api/login   — {username, password} (form or JSON) → starts the one
 POST /api/logout  — end the current session
 GET  /api/me      — current account, or 401
 
-CSRF note: exempted for now (Postman-friendly); Phase 4's browser UI is
-same-origin and will send the CSRF token, at which point the exemptions go.
+CSRF is enforced (Phase 4): clients read the csrftoken cookie planted by
+the UI page and echo it in the X-CSRFToken header on every POST.
 """
 
 import json
@@ -14,7 +14,6 @@ import json
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.sessions.models import Session
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_POST
 
 from .decorators import api_login_required
@@ -31,7 +30,6 @@ def _credentials(request) -> tuple[str, str]:
     return request.POST.get("username", ""), request.POST.get("password", "")
 
 
-@csrf_exempt
 @require_POST
 def login_view(request):
     username, password = _credentials(request)
@@ -52,7 +50,6 @@ def login_view(request):
     return JsonResponse({"username": user.username})
 
 
-@csrf_exempt
 @require_POST
 @api_login_required
 def logout_view(request):

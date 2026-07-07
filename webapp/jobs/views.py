@@ -4,19 +4,20 @@ POST /api/jobs            — upload a PDF + style, start a background job
 GET  /api/jobs/<id>       — status / progress / result summary
 GET  /api/jobs/<id>/download — zip of the generated markdown files
 GET  /api/styles          — available style presets (single source of truth)
+GET  /api/jobs?limit=N    — recent jobs (history)
+GET  /api/jobs/<id>/files/<name> — one generated markdown file (preview)
 
-CSRF: the create endpoint is exempt for now; Phase 3 puts the whole API
-behind session auth and Phase 4's UI sends the CSRF token properly.
+CSRF is enforced; the UI echoes the csrftoken cookie via X-CSRFToken.
 """
 
 import io
+import re
 import zipfile
 
 from django.conf import settings
-from django.http import FileResponse, JsonResponse
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET, require_http_methods
 
 from accounts.decorators import api_login_required
 from src.styles import available_styles
@@ -37,10 +38,16 @@ def _month_spend_usd() -> float:
     return sum(j.cost_usd for j in month_jobs)
 
 
-@csrf_exempt
-@require_POST
+@require_http_methods(["GET", "POST"])
 @api_login_required
-def create_job(request):
+def jobs_collection(request):
+    if request.method == "GET":
+        limit = min(int(request.GET.get("limit", "10")), 50)
+        return JsonResponse({"jobs": [j.as_dict() for j in Job.objects.all()[:limit]]})
+    return _create_job(request)
+
+
+def _create_job(request):
     upload = request.FILES.get("pdf")
     style = request.POST.get("style", "economist")
 
@@ -96,3 +103,22 @@ def job_download(request, job_id):
     buffer.seek(0)
     stem = job.original_filename.rsplit(".", 1)[0]
     return FileResponse(buffer, as_attachment=True, filename=f"{stem}-bilingual.zip")
+
+
+_MD_NAME_RE = re.compile(r"^[\w\-一-鿿（）()]+\.md$")
+
+
+@require_GET
+@api_login_required
+def job_file(request, job_id, name):
+    """Raw markdown of one generated article, for in-browser preview."""
+    try:
+        job = Job.objects.get(id=job_id)
+    except Job.DoesNotExist:
+        return JsonResponse({"error": "job not found"}, status=404)
+    if not _MD_NAME_RE.match(name):
+        return JsonResponse({"error": "bad filename"}, status=400)
+    path = job.output_dir / name
+    if not path.is_file():
+        return JsonResponse({"error": "file not found"}, status=404)
+    return HttpResponse(path.read_text(encoding="utf-8"), content_type="text/markdown; charset=utf-8")
