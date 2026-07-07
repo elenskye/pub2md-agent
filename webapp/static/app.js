@@ -24,7 +24,7 @@ async function boot() {
     const { username } = await resp.json();
     showApp(username);
   } else {
-    $("login-card").hidden = false;
+    $("login-panel").hidden = false;
   }
 }
 
@@ -35,11 +35,11 @@ $("login-form").addEventListener("submit", async (ev) => {
   const resp = await api("/api/login", { method: "POST", body });
   if (resp.ok) {
     const { username } = await resp.json();
-    $("login-card").hidden = true;
+    $("login-panel").hidden = true;
     ev.target.reset();
     showApp(username);
   } else {
-    $("login-error").textContent = "账户或密码错误";
+    $("login-error").textContent = "⚠ Incorrect username or password";
   }
 });
 
@@ -51,7 +51,8 @@ $("logout-btn").addEventListener("click", async () => {
 async function showApp(username) {
   $("username").textContent = username;
   $("user-box").hidden = false;
-  $("app-card").hidden = false;
+  $("login-panel").hidden = true;
+  $("job-panel").hidden = false;
   const styles = (await (await api("/api/styles")).json()).styles;
   $("style-select").innerHTML = styles
     .map((s) => `<option value="${s}">${s}</option>`)
@@ -78,14 +79,14 @@ $("job-form").addEventListener("submit", async (ev) => {
   $("result-box").hidden = true;
   const resp = await api("/api/jobs", { method: "POST", body });
   if (!resp.ok) {
-    $("job-error").textContent = (await resp.json()).error || "创建任务失败";
+    $("job-error").textContent = "⚠ " + ((await resp.json()).error || "Failed to create job");
     $("start-btn").disabled = false;
     return;
   }
   const job = await resp.json();
   currentJob = job.id;
   $("progress-box").hidden = false;
-  $("progress-text").textContent = "排队中…";
+  $("progress-text").textContent = "Queued…";
   pollTimer = setInterval(poll, 2000);
 });
 
@@ -99,7 +100,7 @@ async function poll() {
     $("progress-box").hidden = true;
     $("start-btn").disabled = false;
     if (job.status === "failed") {
-      $("job-error").textContent = `任务失败：${job.error}`;
+      $("job-error").textContent = `⚠ Job failed: ${job.error}`;
     } else {
       renderResult(job);
     }
@@ -109,13 +110,13 @@ async function poll() {
 
 function renderResult(job) {
   $("result-box").hidden = false;
-  $("cost-note").textContent = `（${job.result.llm_calls} 次调用 · 约 $${job.cost_usd}）`;
+  $("cost-note").textContent = `(${job.result.llm_calls} calls · ~$${job.cost_usd})`;
   $("article-list").innerHTML = job.result.articles
     .map(
       (a, i) => `<li>
         <span class="title">${a.title}</span>
-        <span class="meta">${a.n_paragraphs} 段${a.n_failed ? ` · ${a.n_failed} 段失败` : ""} · ${a.mode === "chinese_only" ? "简体输出" : "双语"}</span>
-        <button data-file="${a.filename}" data-title="${a.title}" class="preview-btn ghost">预览</button>
+        <span class="meta">${a.n_paragraphs} paragraphs${a.n_failed ? ` · ${a.n_failed} failed` : ""} · ${a.mode === "chinese_only" ? "Simplified" : "Bilingual"}</span>
+        <button data-file="${a.filename}" data-title="${a.title}" class="preview-btn ghost">Preview</button>
       </li>`
     )
     .join("");
@@ -164,7 +165,7 @@ async function refreshHistory() {
       (j) => `<li>
         <span class="title">${j.original_filename}</span>
         <span class="meta">${j.style} · ${j.status} · ${new Date(j.created_at).toLocaleString()}</span>
-        ${j.status === "done" ? `<a href="/api/jobs/${j.id}/download">下载</a>` : ""}
+        ${j.status === "done" ? `<a href="/api/jobs/${j.id}/download">Download</a>` : ""}
       </li>`
     )
     .join("");
