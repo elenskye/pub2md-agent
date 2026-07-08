@@ -13,9 +13,23 @@ from pathlib import Path
 from src.agent.state import ArticleState
 from src.agent.nodes.translator import FAILED_MARK
 
-# One-line inline math span ($...$), not the block delimiter $$. The
-# non-greedy body forbids $ and newlines, so $$...$$ blocks never match.
-_INLINE_MATH_RE = re.compile(r"(?<!\$)(\$[^$\n]+?\$)(?!\$)")
+# A $ directly followed by a digit is currency ($86bn), not math — escape it
+# so Markdown math renderers never pair it with a later $ and italicize half
+# a sentence. Inline math ($d_k$) and $$ blocks are untouched. Known accepted
+# edge: an inline formula that STARTS with a digit ($2^n$) would be escaped.
+_CURRENCY_RE = re.compile(r"\$(?=\d)")
+
+
+def _escape_currency(text: str) -> str:
+    # Fenced placeholders (```[formula]...```) must stay byte-exact.
+    if text.startswith("```"):
+        return text
+    return _CURRENCY_RE.sub(r"\\$", text)
+
+
+# One-line inline math span ($...$), not the block delimiter $$ and not an
+# escaped currency \$. The non-greedy body forbids $ and newlines.
+_INLINE_MATH_RE = re.compile(r"(?<![\$\\])(\$[^$\n]+?\$)(?!\$)")
 
 
 def _pad_inline_math(text: str) -> str:
@@ -41,34 +55,35 @@ def _pad_inline_math(text: str) -> str:
 def _bilingual_body(state: ArticleState, parts: list[str]) -> None:
     article = state["article"]
     if article["subtitle"]:
-        parts.append(f"**{article['subtitle']}**")
+        parts.append(f"**{_escape_currency(article['subtitle'])}**")
         zh_subtitle = state.get("zh_subtitle", "")
         if zh_subtitle and zh_subtitle != FAILED_MARK:
-            parts.append(f"**{zh_subtitle}**")
+            parts.append(f"**{_escape_currency(zh_subtitle)}**")
     for pair in state["translated_paragraphs"]:
+        en = _escape_currency(pair["en"])
+        zh = _escape_currency(pair["zh"])
         if pair.get("is_heading"):
             if pair["failed"] or pair["zh"].strip() == pair["en"].strip():
-                parts.append(f"## {pair['en']}")
+                parts.append(f"## {en}")
             else:
-                parts.append(f"## {pair['zh']} | {pair['en']}")
+                parts.append(f"## {zh} | {en}")
             continue
-        parts.append(pair["en"])
+        parts.append(en)
         if pair["failed"]:
-            parts.append(f"{FAILED_MARK}\n\n{pair['en']}")
+            parts.append(f"{FAILED_MARK}\n\n{en}")
         elif pair["zh"].strip() != pair["en"].strip():
             # Untranslatable segments (author blocks, formulas) come back
             # verbatim — printing them twice helps nobody.
-            parts.append(_pad_inline_math(pair["zh"]))
+            parts.append(_pad_inline_math(zh))
 
 
 def _chinese_only_body(state: ArticleState, parts: list[str]) -> None:
     zh_subtitle = state.get("zh_subtitle", "")
     if zh_subtitle:
-        parts.append(f"**{zh_subtitle}**")
+        parts.append(f"**{_escape_currency(zh_subtitle)}**")
     for pair in state["translated_paragraphs"]:
-        parts.append(
-            f"## {pair['zh']}" if pair.get("is_heading") else _pad_inline_math(pair["zh"])
-        )
+        zh = _escape_currency(pair["zh"])
+        parts.append(f"## {zh}" if pair.get("is_heading") else _pad_inline_math(zh))
 
 
 def formatter(state: ArticleState) -> dict:
@@ -78,13 +93,13 @@ def formatter(state: ArticleState) -> dict:
     parts: list[str] = []
 
     if mode == "chinese_only":
-        parts.append(f"# {zh_title or article['title']}")
+        parts.append(f"# {_escape_currency(zh_title or article['title'])}")
         note = "Converted to Simplified Chinese"
     else:
         heading = article["title"]
         if zh_title and zh_title != FAILED_MARK:
             heading = f"{zh_title} | {article['title']}"
-        parts.append(f"# {heading}")
+        parts.append(f"# {_escape_currency(heading)}")
         note = "Machine translation — verify before quoting"
 
     parts.append(

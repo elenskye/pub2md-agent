@@ -12,3 +12,6 @@ CLAUDE.md
 data/glossary.db*
 var/
 webapp/db.sqlite3
+.claude/
+webapp/staticfiles/
+deploy/DEPLOYMENT.md

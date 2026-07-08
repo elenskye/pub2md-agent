@@ -12,6 +12,8 @@ dependencies = [
     "pydantic>=2.0",
     "opencc-python-reimplemented>=0.1",
     "django>=5.0",
+    "whitenoise>=6.6",
+    "gunicorn>=22.0",
 ]
 
 [tool.pytest.ini_options]

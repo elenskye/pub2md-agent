@@ -42,8 +42,28 @@ style), `GET /api/jobs/<id>` (status/progress/result), and
 pool (no extra infrastructure; runs are serialized), progress is derived
 from streaming the LangGraph run, uploads are size/page-capped, and a
 monthly budget ceiling (`PUB2MD_MONTHLY_BUDGET_USD`) guards the owner's API
-keys. Auth (two rotating accounts, single active session) and a browser UI
-are the next phases.
+keys.
+
+Access is restricted to two rotatable accounts
+(`python manage.py rotate_accounts` regenerates the credentials and kills
+live sessions — names configurable via `PUB2MD_ACCOUNTS`). Each account is
+allowed one active session: logging in on a new device deletes the previous
+session server-side, signing the old device out instantly
+(`POST /api/login`, `POST /api/logout`, `GET /api/me`). CSRF is enforced on
+every POST (the UI echoes the csrftoken cookie via `X-CSRFToken`).
+
+The browser UI (served at `/`) covers the whole flow: login, upload + style
+selection (populated from `available_styles()`), live progress while the
+pipeline runs, per-article preview rendered with marked + KaTeX (block `$$`
+and inline `$` math; currency amounts like `$86bn` are escaped in the
+generated markdown so note apps never mistake them for math), zip download,
+and recent-job history with a clear-history button.
+
+Housekeeping is automatic: finished jobs (rows and files) are deleted after
+`PUB2MD_JOB_RETENTION_DAYS`, jobs orphaned by a dead worker are marked
+failed, and stray job directories are swept. Production deployment (nginx +
+gunicorn + systemd on a small VM, TLS via certbot) is documented in
+[deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md).
 
 ## Architecture
 
