@@ -22,7 +22,7 @@ from django.views.decorators.http import require_GET, require_http_methods
 from accounts.decorators import api_login_required
 from src.styles import available_styles
 
-from . import tasks
+from . import maintenance, tasks
 from .models import Job
 
 
@@ -48,6 +48,7 @@ def jobs_collection(request):
 
 
 def _create_job(request):
+    maintenance.sweep()  # opportunistic housekeeping, cheap on two-user scale
     upload = request.FILES.get("pdf")
     style = request.POST.get("style", "economist")
 
@@ -103,6 +104,13 @@ def job_download(request, job_id):
     buffer.seek(0)
     stem = job.original_filename.rsplit(".", 1)[0]
     return FileResponse(buffer, as_attachment=True, filename=f"{stem}-bilingual.zip")
+
+
+@require_http_methods(["POST"])
+@api_login_required
+def clear_history(request):
+    """Delete all finished/failed jobs — database rows and files together."""
+    return JsonResponse({"cleared": maintenance.clear_history()})
 
 
 _MD_NAME_RE = re.compile(r"^[\w\-一-鿿（）()]+\.md$")

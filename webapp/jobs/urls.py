@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     path("styles", views.styles),
     path("jobs", views.jobs_collection),
+    path("jobs/clear", views.clear_history),
     path("jobs/<uuid:job_id>", views.job_detail),
     path("jobs/<uuid:job_id>/download", views.job_download),
     path("jobs/<uuid:job_id>/files/<str:name>", views.job_file),

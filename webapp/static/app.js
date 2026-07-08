@@ -155,6 +155,12 @@ $("preview-close").addEventListener("click", () => $("preview-dialog").close());
 
 /* ---------- history ---------- */
 
+$("clear-history-btn").addEventListener("click", async () => {
+  if (!confirm("Delete all finished jobs and their files? This cannot be undone.")) return;
+  await api("/api/jobs/clear", { method: "POST" });
+  refreshHistory();
+});
+
 async function refreshHistory() {
   const resp = await api("/api/jobs?limit=8");
   if (!resp.ok) return;

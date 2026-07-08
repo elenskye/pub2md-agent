@@ -36,6 +36,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -71,6 +72,24 @@ DATABASES = {
 
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / "staticfiles"  # collectstatic target; whitenoise serves it
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+}
+
+# --- production hardening (active when DJANGO_DEBUG=false) --------------
+if not DEBUG:
+    if SECRET_KEY == "dev-only-insecure-key":
+        raise RuntimeError("Set DJANGO_SECRET_KEY in .env before running with DJANGO_DEBUG=false")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
+    # e.g. DJANGO_CSRF_TRUSTED_ORIGINS=https://pub2md.example.com
+    CSRF_TRUSTED_ORIGINS = [
+        o for o in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o
+    ]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Singapore"
@@ -84,3 +103,7 @@ MAX_UPLOAD_MB = int(os.getenv("PUB2MD_MAX_UPLOAD_MB", "25"))
 MAX_PDF_PAGES = int(os.getenv("PUB2MD_MAX_PDF_PAGES", "100"))
 # Hard monthly spend ceiling across all jobs (the API keys are the owner's).
 MONTHLY_BUDGET_USD = float(os.getenv("PUB2MD_MONTHLY_BUDGET_USD", "5.0"))
+# Housekeeping: terminal jobs (rows + files) are deleted after this many
+# days; queued/running jobs older than this many minutes are marked failed.
+JOB_RETENTION_DAYS = int(os.getenv("PUB2MD_JOB_RETENTION_DAYS", "7"))
+JOB_STALE_MINUTES = int(os.getenv("PUB2MD_JOB_STALE_MINUTES", "45"))
