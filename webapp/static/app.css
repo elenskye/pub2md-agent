@@ -105,6 +105,8 @@ main {
 }
 
 .card h2 { margin: 0 0 16px; font-family: var(--serif); font-size: 19px; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; }
+.card-head h2 { margin-bottom: 12px; }
 
 /* ---------- forms ---------- */
 

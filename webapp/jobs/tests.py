@@ -165,6 +165,76 @@ class CsrfEnforcedTests(TestCase):
         self.assertEqual(resp.status_code, 200)
 
 
+class ClearHistoryTests(AuthedTestCase):
+    def test_clears_terminal_jobs_and_files_keeps_running(self):
+        done = Job.objects.create(
+            style="economist", original_filename="a.pdf", status=Job.Status.DONE
+        )
+        done.output_dir.mkdir(parents=True, exist_ok=True)
+        (done.output_dir / "00-a.md").write_text("x", encoding="utf-8")
+        running = Job.objects.create(
+            style="economist", original_filename="b.pdf", status=Job.Status.RUNNING
+        )
+
+        resp = self.client.post("/api/jobs/clear")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["cleared"], 1)
+        self.assertFalse(Job.objects.filter(id=done.id).exists())
+        self.assertFalse(done.dir.exists())
+        self.assertTrue(Job.objects.filter(id=running.id).exists())
+
+    def test_requires_auth(self):
+        from django.test import Client
+
+        resp = Client().post("/api/jobs/clear")
+        self.assertEqual(resp.status_code, 401)
+
+
+class SweepTests(AuthedTestCase):
+    def _age(self, job, **delta):
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        Job.objects.filter(id=job.id).update(created_at=timezone.now() - timedelta(**delta))
+
+    def test_stale_running_job_marked_failed(self):
+        from . import maintenance
+
+        job = Job.objects.create(
+            style="economist", original_filename="x.pdf", status=Job.Status.RUNNING
+        )
+        self._age(job, minutes=90)
+        result = maintenance.sweep()
+        job.refresh_from_db()
+        self.assertEqual(result["stale"], 1)
+        self.assertEqual(job.status, Job.Status.FAILED)
+        self.assertIn("stale", job.error)
+
+    def test_fresh_running_job_untouched(self):
+        from . import maintenance
+
+        job = Job.objects.create(
+            style="economist", original_filename="x.pdf", status=Job.Status.RUNNING
+        )
+        maintenance.sweep()
+        job.refresh_from_db()
+        self.assertEqual(job.status, Job.Status.RUNNING)
+
+    def test_expired_terminal_job_deleted_with_files(self):
+        from . import maintenance
+
+        job = Job.objects.create(
+            style="economist", original_filename="x.pdf", status=Job.Status.DONE
+        )
+        job.output_dir.mkdir(parents=True, exist_ok=True)
+        self._age(job, days=30)
+        result = maintenance.sweep()
+        self.assertEqual(result["expired"], 1)
+        self.assertFalse(Job.objects.filter(id=job.id).exists())
+        self.assertFalse(job.dir.exists())
+
+
 class StageOfTests(TestCase):
     def test_progress_labels(self):
         from .tasks import _stage_of
