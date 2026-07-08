@@ -86,7 +86,7 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_HSTS_SECONDS = 60 * 60 * 24 * 30
-    # e.g. DJANGO_CSRF_TRUSTED_ORIGINS=https://pub2md.example.com
+    # e.g. DJANGO_CSRF_TRUSTED_ORIGINS=https://pub2md.duckdns.org
     CSRF_TRUSTED_ORIGINS = [
         o for o in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o
     ]
