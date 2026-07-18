@@ -77,7 +77,7 @@ def term_candidate_extractor(state: ArticleState) -> dict:
         max_tokens=512, model_kwargs={"response_format": {"type": "json_object"}}
     )
     prompt = _PROMPT.format(
-        style=state["style"], max_candidates=_MAX_CANDIDATES, known=known, text=text
+        style=state["base_style"], max_candidates=_MAX_CANDIDATES, known=known, text=text
     )
 
     candidates: list[str] = []

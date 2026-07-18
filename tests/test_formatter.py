@@ -7,7 +7,8 @@ from src.agent.nodes.formatter import _escape_currency, _pad_inline_math, format
 def _state(pairs, mode="bilingual", title="T", subtitle=""):
     return {
         "article": {"index": 0, "title": title, "subtitle": subtitle, "paragraphs": []},
-        "style": "economist",
+        "base_style": "economist",
+        "domains": ["econ"],
         "pdf_path": "/tmp/x.pdf",
         "output_mode": mode,
         "zh_title": "标题",

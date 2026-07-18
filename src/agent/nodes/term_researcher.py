@@ -45,7 +45,7 @@ def term_researcher(state: ArticleState) -> dict:
     candidates = state.get("term_candidates", [])
     if not candidates:
         return {}
-    style = state["style"]
+    style = state["base_style"]
     errors: list[str] = []
     usage: list[dict] = []
 

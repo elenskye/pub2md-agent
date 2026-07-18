@@ -26,7 +26,7 @@ def term_verifier(state: ArticleState) -> dict:
     errors: list[str] = []
     usage: list[dict] = []
     try:
-        verdicts, u = judge_terms(candidates, state["style"])
+        verdicts, u = judge_terms(candidates, state["base_style"])
         usage.append({"node": "term_verifier", **u})
         accepted, rejected = apply_verdicts(
             candidates, verdicts, full_text, state.get("glossary", {})

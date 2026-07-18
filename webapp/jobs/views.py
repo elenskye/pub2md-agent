@@ -1,9 +1,10 @@
 """JSON API for translation jobs.
 
-POST /api/jobs            — upload a PDF + style, start a background job
+POST /api/jobs            — upload a PDF + base style + domains, start a job
 GET  /api/jobs/<id>       — status / progress / result summary
 GET  /api/jobs/<id>/download — zip of the generated markdown files
-GET  /api/styles          — available style presets (single source of truth)
+GET  /api/styles          — base styles, domains and default pairings
+                            (single source of truth: src/styles.py)
 GET  /api/jobs?limit=N    — recent jobs (history)
 GET  /api/jobs/<id>/files/<name> — one generated markdown file (preview)
 
@@ -20,7 +21,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_http_methods
 
 from accounts.decorators import api_login_required
-from src.styles import available_styles
+from src.styles import available_base_styles, available_domains, default_domains
 
 from . import maintenance, tasks
 from .models import Job
@@ -29,7 +30,14 @@ from .models import Job
 @require_GET
 @api_login_required
 def styles(request):
-    return JsonResponse({"styles": available_styles()})
+    base_styles = available_base_styles()
+    return JsonResponse(
+        {
+            "base_styles": base_styles,
+            "domains": available_domains(),
+            "defaults": {bs: default_domains(bs) for bs in base_styles},
+        }
+    )
 
 
 def _month_spend_usd() -> float:
@@ -50,7 +58,9 @@ def jobs_collection(request):
 def _create_job(request):
     maintenance.sweep()  # opportunistic housekeeping, cheap on two-user scale
     upload = request.FILES.get("pdf")
-    style = request.POST.get("style", "economist")
+    base_style = request.POST.get("base_style", "economist")
+    # Repeated form field; submission order is the glossary precedence order.
+    domains = list(dict.fromkeys(request.POST.getlist("domains")))
 
     if upload is None:
         return JsonResponse({"error": "missing file field 'pdf'"}, status=400)
@@ -60,14 +70,21 @@ def _create_job(request):
         return JsonResponse(
             {"error": f"file exceeds the {settings.MAX_UPLOAD_MB} MB limit"}, status=400
         )
-    if style not in available_styles():
-        return JsonResponse({"error": f"unknown style '{style}'"}, status=400)
+    if base_style not in available_base_styles():
+        return JsonResponse({"error": f"unknown base style '{base_style}'"}, status=400)
+    unknown = [d for d in domains if d not in available_domains()]
+    if unknown:
+        return JsonResponse({"error": f"unknown domain(s): {', '.join(unknown)}"}, status=400)
+    if not domains:
+        domains = default_domains(base_style)
     if _month_spend_usd() >= settings.MONTHLY_BUDGET_USD:
         return JsonResponse(
             {"error": "monthly budget exhausted; try again next month"}, status=429
         )
 
-    job = Job.objects.create(style=style, original_filename=upload.name)
+    job = Job.objects.create(
+        base_style=base_style, domains=domains, original_filename=upload.name
+    )
     job.dir.mkdir(parents=True, exist_ok=True)
     with open(job.input_path, "wb") as fh:
         for chunk in upload.chunks():

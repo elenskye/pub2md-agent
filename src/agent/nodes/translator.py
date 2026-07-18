@@ -75,7 +75,7 @@ def _parse_reply(content: str, expected: list[int]) -> dict[int, str]:
 
 def translator(state: ArticleState) -> dict:
     article = state["article"]
-    style = state["style"]
+    style = state["base_style"]
     # JSON mode: the API guarantees well-formed JSON, which plain prompting
     # does not (observed failures: bare newlines, missing closing quotes).
     llm = get_chat_model(model_kwargs={"response_format": {"type": "json_object"}})

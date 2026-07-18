@@ -86,7 +86,8 @@ def _run(job) -> None:
     for snapshot in graph.stream(
         {
             "pdf_path": str(job.input_path),
-            "style": job.style,
+            "base_style": job.base_style,
+            "domains": job.domains,
             "output_dir": str(job.output_dir),
         },
         config={"recursion_limit": 100},

@@ -19,7 +19,9 @@ quantitative eval against a single-shot baseline.
 # deps: langgraph, langchain-openai, pymupdf, python-dotenv, pydantic,
 #       opencc-python-reimplemented (+ tavily for terminology research)
 cp .env.example .env   # pick a provider block and fill in the API keys
-python -m src.cli path/to/issue.pdf --style economist   # or: academy
+python -m src.cli path/to/issue.pdf --base-style economist --domains econ
+# base style (tone/layout) and glossary domains (econ/cs/pm) are two
+# independent axes; --domains defaults to the base style's usual pairing
 ```
 
 One `.md` file per detected article lands in `outputs/`; the run ends with a
@@ -52,8 +54,9 @@ session server-side, signing the old device out instantly
 (`POST /api/login`, `POST /api/logout`, `GET /api/me`). CSRF is enforced on
 every POST (the UI echoes the csrftoken cookie via `X-CSRFToken`).
 
-The browser UI (served at `/`) covers the whole flow: login, upload + style
-selection (populated from `available_styles()`), live progress while the
+The browser UI (served at `/`) covers the whole flow: login, upload + base
+style and glossary-domain selection (populated from `src/styles.py`, the
+single source of truth for both axes), live progress while the
 pipeline runs, per-article preview rendered with marked + KaTeX (block `$$`
 and inline `$` math; currency amounts like `$86bn` are escaped in the
 generated markdown so note apps never mistake them for math), zip download,
@@ -74,7 +77,7 @@ flowchart TD
     FT --> C[article_segmenter<br/>font-size candidates + LLM confirmation]
     C -- "Send fan-out<br/>(one branch per article)" --> D[lang_state_detector<br/>Latin/Han ratio + OpenCC round-trip]
     D -- English source --> E[en_text_isolator]
-    E --> F[style_glossary_loader]
+    E --> F[domain_glossary_loader<br/>merged over selected domains]
     F --> G[term_candidate_extractor<br/>+ grounding filter]
     G -- candidates --> V[term_verifier<br/>keep / rewrite / reject rubric]
     V -- verified --> H[term_researcher<br/>Tavily, style-shaped queries]

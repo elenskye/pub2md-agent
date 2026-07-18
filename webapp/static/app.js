@@ -48,16 +48,37 @@ $("logout-btn").addEventListener("click", async () => {
   location.reload();
 });
 
+/* Two-axis style model: base style (single) × glossary domains (multi).
+ * The checkbox display order doubles as the glossary precedence order, so
+ * the base style's usual domains are listed first. */
+
+let styleMeta = { base_styles: [], domains: [], defaults: {} };
+
+function renderDomains() {
+  const base = $("style-select").value;
+  const defaults = styleMeta.defaults[base] || [];
+  const ordered = [...defaults, ...styleMeta.domains.filter((d) => !defaults.includes(d))];
+  $("domain-boxes").innerHTML = ordered
+    .map(
+      (d) => `<label class="domain-box">
+        <input type="checkbox" name="domains" value="${d}" ${defaults.includes(d) ? "checked" : ""}> ${d}
+      </label>`
+    )
+    .join("");
+}
+
 async function showApp(username) {
   $("username").textContent = username;
   $("user-box").hidden = false;
   $("login-panel").hidden = true;
   $("job-panel").hidden = false;
-  const styles = (await (await api("/api/styles")).json()).styles;
-  $("style-select").innerHTML = styles
+  styleMeta = await (await api("/api/styles")).json();
+  $("style-select").innerHTML = styleMeta.base_styles
     .map((s) => `<option value="${s}">${s}</option>`)
     .join("");
-  if (styles.includes("economist")) $("style-select").value = "economist";
+  if (styleMeta.base_styles.includes("economist")) $("style-select").value = "economist";
+  renderDomains();
+  $("style-select").addEventListener("change", renderDomains);
   refreshHistory();
 }
 
@@ -71,9 +92,15 @@ $("job-form").addEventListener("submit", async (ev) => {
   $("job-error").textContent = "";
   const file = $("pdf-input").files[0];
   if (!file) return;
+  const checked = [...document.querySelectorAll("#domain-boxes input:checked")];
+  if (checked.length === 0) {
+    $("job-error").textContent = "⚠ Select at least one glossary domain";
+    return;
+  }
   const body = new FormData();
   body.append("pdf", file);
-  body.append("style", $("style-select").value);
+  body.append("base_style", $("style-select").value);
+  checked.forEach((box) => body.append("domains", box.value));
 
   $("start-btn").disabled = true;
   $("result-box").hidden = true;
@@ -170,7 +197,7 @@ async function refreshHistory() {
     .map(
       (j) => `<li>
         <span class="title">${j.original_filename}</span>
-        <span class="meta">${j.style} · ${j.status} · ${new Date(j.created_at).toLocaleString()}</span>
+        <span class="meta">${j.base_style} × ${(j.domains || []).join("+")} · ${j.status} · ${new Date(j.created_at).toLocaleString()}</span>
         ${j.status === "done" ? `<a href="/api/jobs/${j.id}/download">Download</a>` : ""}
       </li>`
     )

@@ -19,7 +19,8 @@ class Job(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
 
-    style = models.CharField(max_length=32)
+    base_style = models.CharField(max_length=32)
+    domains = models.JSONField(default=list)  # precedence order for glossary merge
     original_filename = models.CharField(max_length=255)
     status = models.CharField(max_length=8, choices=Status.choices, default=Status.QUEUED)
     progress = models.CharField(max_length=128, blank=True, default="")
@@ -47,7 +48,8 @@ class Job(models.Model):
         return {
             "id": str(self.id),
             "created_at": self.created_at.isoformat(),
-            "style": self.style,
+            "base_style": self.base_style,
+            "domains": self.domains,
             "original_filename": self.original_filename,
             "status": self.status,
             "progress": self.progress,

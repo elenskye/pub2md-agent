@@ -21,7 +21,7 @@ import pymupdf
 
 from src.agent.graph import build_graph
 from src.config import get_chat_model, load_settings
-from src.tools.glossary_store import load_glossary, terms_by_en
+from src.tools.glossary_store import load_merged_glossary
 from eval.metrics import (
     adherence_rate,
     consistency_rate,
@@ -48,11 +48,12 @@ def _usage_cost(usage: list[dict], settings) -> float:
     return tin / 1e6 * settings.price_input_per_m + tout / 1e6 * settings.price_output_per_m
 
 
-def _run_agent(pdf_path: str, style: str, settings) -> dict:
+def _run_agent(pdf_path: str, base_style: str, domains: list[str], settings) -> dict:
     graph = build_graph()
     t0 = time.time()
     final = graph.invoke(
-        {"pdf_path": pdf_path, "style": style}, config={"recursion_limit": 100}
+        {"pdf_path": pdf_path, "base_style": base_style, "domains": domains},
+        config={"recursion_limit": 100},
     )
     results = final.get("results", [])
     all_pairs = [p for r in results for p in r["pairs"]]
@@ -120,12 +121,19 @@ def main() -> int:
     for item in items:
         pdf_path = str(EVAL_DIR / item["pdf"])
         stem = Path(pdf_path).stem
-        glossary = terms_by_en(load_glossary(item["style"]))
-        print(f"\n=== {stem} (style={item['style']}, expect {item['expected_articles']} articles)")
+        glossary = load_merged_glossary(item["domains"])
+        print(
+            f"\n=== {stem} (style={item['base_style']} × {'+'.join(item['domains'])}, "
+            f"expect {item['expected_articles']} articles)"
+        )
 
-        record: dict = {"pdf": item["pdf"], "style": item["style"]}
+        record: dict = {
+            "pdf": item["pdf"],
+            "base_style": item["base_style"],
+            "domains": item["domains"],
+        }
 
-        agent = _run_agent(pdf_path, item["style"], settings)
+        agent = _run_agent(pdf_path, item["base_style"], item["domains"], settings)
         occ = term_occurrences(agent["pairs"], glossary)
         agent_occurrences.extend(occ)
         adh, n_occ = adherence_rate(occ)

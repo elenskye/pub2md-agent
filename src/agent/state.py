@@ -61,7 +61,8 @@ class TokenUsage(TypedDict):
 
 class PipelineState(TypedDict, total=False):
     pdf_path: str
-    style: str
+    base_style: str  # prompt/tone preset (economist, academy, ...)
+    domains: list[str]  # glossary domains, in precedence order (econ, cs, pm, ...)
     output_dir: str  # where .md files land; defaults to "outputs" (CLI)
     raw_blocks: list[Line]
     page_sizes: list[PageGeometry]
@@ -87,7 +88,8 @@ class ArticleOutput(TypedDict, total=False):
 class ArticleState(TypedDict, total=False):
     """Per-article sub-state carried through the Send fan-out branch."""
 
-    style: str
+    base_style: str
+    domains: list[str]
     pdf_path: str
     output_dir: str
     article: Article
@@ -95,7 +97,7 @@ class ArticleState(TypedDict, total=False):
     script_state: str  # "none" | "simplified" | "traditional" | "mixed"
     english_paragraphs: list[str]  # source paragraphs, existing translation dropped
     english_headings: list[bool]  # parallel to english_paragraphs
-    glossary: dict  # lowercased EN term -> glossary entry, for this style
+    glossary: dict  # lowercased EN term -> entry, merged over the selected domains
     term_candidates: list[str]  # specialized terms not yet in the glossary
     resolved_terms: list[dict]  # researched entries awaiting glossary write
     translated_paragraphs: list[dict]  # {"en": str, "zh": str, "failed": bool}

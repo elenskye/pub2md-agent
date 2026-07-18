@@ -1,7 +1,7 @@
 """Command-line entry point.
 
 Usage:
-    python -m src.cli <pdf_path> [--style economist]
+    python -m src.cli <pdf_path> [--base-style economist] [--domains econ cs]
 
 Observability: every run appends a structured record to logs/ (token usage,
 cost, errors, new glossary terms). Full step-by-step traces go to LangSmith
@@ -18,7 +18,7 @@ from pathlib import Path
 
 from src.agent.graph import build_graph
 from src.config import load_settings
-from src.styles import available_styles
+from src.styles import available_base_styles, available_domains, default_domains
 from src.tools.pdf_layout_parser import PDFExtractionError
 
 LOGS_DIR = Path("logs")
@@ -31,7 +31,8 @@ def _write_run_log(args, settings, final: dict, seconds: float) -> Path:
     record = {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "pdf": args.pdf_path,
-        "style": args.style,
+        "base_style": args.base_style,
+        "domains": args.domains,
         "provider": settings.provider,
         "model": settings.model,
         "seconds": round(seconds, 1),
@@ -85,12 +86,21 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="pub2md-agent")
     parser.add_argument("pdf_path", help="Path to the input PDF")
     parser.add_argument(
-        "--style",
+        "--base-style",
         default="economist",
-        choices=available_styles(),  # derived from src/prompts/*_style.md
-        help="Translation style preset",
+        choices=available_base_styles(),  # derived from src/prompts/*_style.md
+        help="Translation style preset (tone/layout)",
+    )
+    parser.add_argument(
+        "--domains",
+        nargs="+",
+        choices=available_domains(),  # derived from data/glossary_<domain>.json
+        help="Glossary domains, in precedence order (default: the base "
+        "style's usual pairing)",
     )
     args = parser.parse_args()
+    if not args.domains:
+        args.domains = default_domains(args.base_style)
 
     try:
         settings = load_settings()
@@ -105,7 +115,7 @@ def main() -> int:
     t0 = time.time()
     try:
         final = graph.invoke(
-            {"pdf_path": args.pdf_path, "style": args.style},
+            {"pdf_path": args.pdf_path, "base_style": args.base_style, "domains": args.domains},
             config={"recursion_limit": 100},
         )
     except PDFExtractionError as exc:
