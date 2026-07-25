@@ -49,23 +49,66 @@ $("logout-btn").addEventListener("click", async () => {
 });
 
 /* Two-axis style model: base style (single) × glossary domains (multi).
- * The checkbox display order doubles as the glossary precedence order, so
- * the base style's usual domains are listed first. */
+ * The pill display order doubles as the glossary precedence order, so the
+ * base style's usual domains are listed first. */
 
 let styleMeta = { base_styles: [], domains: [], defaults: {} };
+let currentBase = "economist";
 
 function renderDomains() {
-  const base = $("style-select").value;
-  const defaults = styleMeta.defaults[base] || [];
+  const defaults = styleMeta.defaults[currentBase] || [];
   const ordered = [...defaults, ...styleMeta.domains.filter((d) => !defaults.includes(d))];
   $("domain-boxes").innerHTML = ordered
     .map(
-      (d) => `<label class="domain-box">
-        <input type="checkbox" name="domains" value="${d}" ${defaults.includes(d) ? "checked" : ""}> ${d}
+      (d) => `<label class="pill">
+        <input type="checkbox" name="domains" value="${d}" ${defaults.includes(d) ? "checked" : ""}>${d}
       </label>`
     )
     .join("");
 }
+
+/* Custom dropdown (native select popups can't match the paper-ink theme). */
+
+function renderStyleOptions() {
+  $("style-current").textContent = currentBase;
+  $("style-panel").innerHTML = styleMeta.base_styles
+    .map(
+      (s) => `<div class="select-option" role="option" data-value="${s}"
+        aria-selected="${s === currentBase}">${s}</div>`
+    )
+    .join("");
+  $("style-panel").querySelectorAll(".select-option").forEach((opt) => {
+    opt.onclick = () => {
+      currentBase = opt.dataset.value;
+      toggleStylePanel(false);
+      renderStyleOptions();
+      renderDomains();
+    };
+  });
+}
+
+function toggleStylePanel(open) {
+  $("style-panel").hidden = !open;
+  $("style-btn").setAttribute("aria-expanded", String(open));
+}
+
+$("style-btn").addEventListener("click", () =>
+  toggleStylePanel($("style-panel").hidden)
+);
+document.addEventListener("click", (ev) => {
+  if (!$("style-select-wrap").contains(ev.target)) toggleStylePanel(false);
+});
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") toggleStylePanel(false);
+});
+
+/* Custom file picker. */
+
+$("file-btn").addEventListener("click", () => $("pdf-input").click());
+$("pdf-input").addEventListener("change", () => {
+  const file = $("pdf-input").files[0];
+  $("file-name").textContent = file ? file.name : "No file selected";
+});
 
 async function showApp(username) {
   $("username").textContent = username;
@@ -73,12 +116,9 @@ async function showApp(username) {
   $("login-panel").hidden = true;
   $("job-panel").hidden = false;
   styleMeta = await (await api("/api/styles")).json();
-  $("style-select").innerHTML = styleMeta.base_styles
-    .map((s) => `<option value="${s}">${s}</option>`)
-    .join("");
-  if (styleMeta.base_styles.includes("economist")) $("style-select").value = "economist";
+  if (!styleMeta.base_styles.includes(currentBase)) currentBase = styleMeta.base_styles[0];
+  renderStyleOptions();
   renderDomains();
-  $("style-select").addEventListener("change", renderDomains);
   refreshHistory();
 }
 
@@ -99,8 +139,9 @@ $("job-form").addEventListener("submit", async (ev) => {
   }
   const body = new FormData();
   body.append("pdf", file);
-  body.append("base_style", $("style-select").value);
+  body.append("base_style", currentBase);
   checked.forEach((box) => body.append("domains", box.value));
+  if ($("refine-input").checked) body.append("refine", "true");
 
   $("start-btn").disabled = true;
   $("result-box").hidden = true;
@@ -114,6 +155,8 @@ $("job-form").addEventListener("submit", async (ev) => {
   currentJob = job.id;
   $("progress-box").hidden = false;
   $("progress-text").textContent = "Queued…";
+  $("progress-pct").textContent = "0%";
+  $("progress-fill").style.width = "0%";
   pollTimer = setInterval(poll, 2000);
 });
 
@@ -122,6 +165,8 @@ async function poll() {
   if (!resp.ok) return;
   const job = await resp.json();
   $("progress-text").textContent = job.progress || job.status;
+  $("progress-pct").textContent = `${job.percent || 0}%`;
+  $("progress-fill").style.width = `${job.percent || 0}%`;
   if (job.status === "done" || job.status === "failed") {
     clearInterval(pollTimer);
     $("progress-box").hidden = true;
@@ -153,7 +198,17 @@ function renderResult(job) {
   const terms = job.result.new_terms || [];
   $("new-terms-box").hidden = terms.length === 0;
   $("new-terms-list").innerHTML = terms
-    .map((t) => `<li>${t.en} → ${t.zh} <small>[${t.source}]</small></li>`)
+    .map((t) => `<li>${t.en} → ${t.zh} <small>[${t.domain || "?"} · ${t.source}]</small></li>`)
+    .join("");
+  const conflicts = job.result.glossary_conflicts || [];
+  $("conflicts-box").hidden = conflicts.length === 0;
+  $("conflicts-list").innerHTML = conflicts
+    .map(
+      (c) =>
+        `<li>${c.en}: used <b>${c.chosen_domain}</b> “${c.chosen_zh}” over ` +
+        c.shadowed.map((s) => `${s.domain} “${s.zh}”`).join(", ") +
+        `</li>`
+    )
     .join("");
   document.querySelectorAll(".preview-btn").forEach((btn) => {
     btn.onclick = () => preview(btn.dataset.file, btn.dataset.title);

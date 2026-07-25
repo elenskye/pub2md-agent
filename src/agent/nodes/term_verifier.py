@@ -25,18 +25,24 @@ def term_verifier(state: ArticleState) -> dict:
 
     errors: list[str] = []
     usage: list[dict] = []
+    domains = state["domains"]
     try:
-        verdicts, u = judge_terms(candidates, state["base_style"])
+        verdicts, u = judge_terms(candidates, state["base_style"], domains)
         usage.append({"node": "term_verifier", **u})
-        accepted, rejected = apply_verdicts(
-            candidates, verdicts, full_text, state.get("glossary", {})
+        accepted, rejected, term_domains = apply_verdicts(
+            candidates, verdicts, full_text, state.get("glossary", {}), domains[0]
         )
         if rejected:
             errors.append(
                 f"term_verifier[{article['title'][:40]}]: rejected "
                 f"{len(rejected)} candidate(s): {', '.join(rejected)}"
             )
-        return {"term_candidates": accepted, "errors": errors, "token_usage": usage}
+        return {
+            "term_candidates": accepted,
+            "term_domains": term_domains,
+            "errors": errors,
+            "token_usage": usage,
+        }
     except Exception as exc:
         errors.append(
             f"term_verifier[{article['title'][:40]}]: judging failed ({exc}); "

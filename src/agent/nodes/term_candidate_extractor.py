@@ -12,18 +12,22 @@ the existing glossary only.
 """
 
 from src.agent.state import ArticleState
+from src.tools.glossary_store import rejected_keys
 from src.tools.llm_json import loads_with_repair, strip_fences
 from src.config import get_chat_model
 
 _MAX_TEXT_CHARS = 6000
-_MAX_CANDIDATES = 8
+_MAX_CANDIDATES = 5  # per article — v3 owner decision
 _MAX_TERM_CHARS = 50
 _MAX_TERM_WORDS = 5
 
 
-def filter_candidates(raw_terms: list, article_text: str, glossary: dict) -> list[str]:
+def filter_candidates(
+    raw_terms: list, article_text: str, glossary: dict, blocked: set[str] = frozenset()
+) -> list[str]:
     """Deterministic gate: drop hallucinated terms (not literally in the
-    article), over-long phrases, and terms the glossary already covers."""
+    article), over-long phrases, terms the glossary already covers, and
+    audit-rejected terms (blocked — deleted terms must stay deleted)."""
     text_lower = article_text.lower()
     seen: set[str] = set()
     kept: list[str] = []
@@ -36,6 +40,7 @@ def filter_candidates(raw_terms: list, article_text: str, glossary: dict) -> lis
             not term
             or key in seen
             or key in glossary
+            or key in blocked
             or len(term) > _MAX_TERM_CHARS
             or len(term.split()) > _MAX_TERM_WORDS
             or key not in text_lower
@@ -53,8 +58,11 @@ of terms the glossary already covers.
 List up to {max_candidates} specialized terms (economics/finance/technology
 jargon, institutions, recurring coined phrases) from the article that are
 NOT already covered and whose translation should stay consistent across
-articles. Exclude: plain everyday words, person names, place names, and
-anything already in the known list.
+articles. Exclude: plain everyday words, person names, place names,
+anything already in the known list, and standard domain vocabulary that
+already has one fixed Chinese rendering every professional uses (e.g.
+portfolio, listed company, cold war, export controls) — only propose terms
+whose rendering genuinely varies between translators.
 
 Known glossary terms:
 {known}
@@ -94,7 +102,9 @@ def term_candidate_extractor(state: ArticleState) -> dict:
             }
         )
         raw = loads_with_repair(strip_fences(resp.content))
-        candidates = filter_candidates(raw.get("terms", []), full_text, glossary)
+        candidates = filter_candidates(
+            raw.get("terms", []), full_text, glossary, rejected_keys(state["domains"])
+        )
     except Exception as exc:
         errors.append(
             f"term_candidate_extractor[{article['title'][:40]}]: {exc}; "

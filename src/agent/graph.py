@@ -1,10 +1,13 @@
 """LangGraph graph assembly.
 
-Main pipeline: pdf_extractor → noise_stripper → article_segmenter, then a
-Send fan-out runs one per-article subgraph per detected article:
+Main pipeline: pdf_extractor → noise_stripper → formula_transcriber →
+article_segmenter → glossary_conflict_auditor (cross-domain zh conflicts →
+run summary), then a Send fan-out runs one per-article subgraph per
+detected article:
 
     lang_state_detector
-      ├─(has_english)→ en_text_isolator → domain_glossary_loader
+      ├─(has_english)→ en_text_isolator → body_gatekeeper
+      │      → domain_glossary_loader
       │      → term_candidate_extractor ─┬─(candidates)→ term_verifier
       │                                  │    ─┬─(verified)→ term_researcher
       │                                  │     │              → glossary_updater ─┐
@@ -22,10 +25,12 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Send
 
 from src.agent.nodes.article_segmenter import article_segmenter
+from src.agent.nodes.body_gatekeeper import body_gatekeeper
 from src.agent.nodes.domain_glossary_loader import domain_glossary_loader
 from src.agent.nodes.en_text_isolator import en_text_isolator
 from src.agent.nodes.formatter import formatter
 from src.agent.nodes.formula_transcriber import formula_transcriber
+from src.agent.nodes.glossary_conflict_auditor import glossary_conflict_auditor
 from src.agent.nodes.glossary_updater import glossary_updater
 from src.agent.nodes.lang_state_detector import lang_state_detector
 from src.agent.nodes.noise_stripper import noise_stripper
@@ -46,6 +51,7 @@ def _fan_out(state: PipelineState) -> list[Send]:
             ArticleState(
                 base_style=state["base_style"],
                 domains=state["domains"],
+                refine=state.get("refine", False),
                 pdf_path=state["pdf_path"],
                 output_dir=state.get("output_dir", ""),
                 article=article,
@@ -61,6 +67,7 @@ def _build_article_subgraph():
     sub = StateGraph(ArticleState, output_schema=ArticleOutput)
     sub.add_node("lang_state_detector", lang_state_detector)
     sub.add_node("en_text_isolator", en_text_isolator)
+    sub.add_node("body_gatekeeper", body_gatekeeper)
     sub.add_node("domain_glossary_loader", domain_glossary_loader)
     sub.add_node("term_candidate_extractor", term_candidate_extractor)
     sub.add_node("term_verifier", term_verifier)
@@ -77,7 +84,8 @@ def _build_article_subgraph():
         lambda s: "en_text_isolator" if s["has_english"] else "opencc_converter",
         ["en_text_isolator", "opencc_converter"],
     )
-    sub.add_edge("en_text_isolator", "domain_glossary_loader")
+    sub.add_edge("en_text_isolator", "body_gatekeeper")
+    sub.add_edge("body_gatekeeper", "domain_glossary_loader")
     sub.add_edge("domain_glossary_loader", "term_candidate_extractor")
     sub.add_conditional_edges(
         "term_candidate_extractor",
@@ -104,12 +112,14 @@ def build_graph():
     graph.add_node("noise_stripper", noise_stripper)
     graph.add_node("formula_transcriber", formula_transcriber)
     graph.add_node("article_segmenter", article_segmenter)
+    graph.add_node("glossary_conflict_auditor", glossary_conflict_auditor)
     graph.add_node("process_article", _build_article_subgraph())
 
     graph.add_edge(START, "pdf_extractor")
     graph.add_edge("pdf_extractor", "noise_stripper")
     graph.add_edge("noise_stripper", "formula_transcriber")
     graph.add_edge("formula_transcriber", "article_segmenter")
-    graph.add_conditional_edges("article_segmenter", _fan_out, ["process_article"])
+    graph.add_edge("article_segmenter", "glossary_conflict_auditor")
+    graph.add_conditional_edges("glossary_conflict_auditor", _fan_out, ["process_article"])
     graph.add_edge("process_article", END)
     return graph.compile()

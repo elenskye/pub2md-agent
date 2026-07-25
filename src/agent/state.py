@@ -14,6 +14,7 @@ class Line(TypedDict, total=False):
     y1: float
     text: str
     font_size: float
+    block: int  # pymupdf block index within the page (VLM layout unit)
     math_only: bool  # every span set in a LaTeX math font (display math)
     special: str  # synthetic marker: "formula" | "table"
     clip: tuple  # (x0, y0, x1, y1) crop rect for special="formula"
@@ -63,11 +64,13 @@ class PipelineState(TypedDict, total=False):
     pdf_path: str
     base_style: str  # prompt/tone preset (economist, academy, ...)
     domains: list[str]  # glossary domains, in precedence order (econ, cs, pm, ...)
+    refine: bool  # optional second translation pass (review + rewrite)
     output_dir: str  # where .md files land; defaults to "outputs" (CLI)
     raw_blocks: list[Line]
     page_sizes: list[PageGeometry]
     cleaned_text: list[Paragraph]
     articles: list[Article]
+    glossary_conflicts: list[dict]  # cross-domain zh disagreements, set pre-fan-out
     # Fan-in fields: article branches append via reducers.
     results: Annotated[list[ArticleResult], operator.add]
     errors: Annotated[list[str], operator.add]
@@ -90,6 +93,7 @@ class ArticleState(TypedDict, total=False):
 
     base_style: str
     domains: list[str]
+    refine: bool
     pdf_path: str
     output_dir: str
     article: Article
@@ -99,6 +103,7 @@ class ArticleState(TypedDict, total=False):
     english_headings: list[bool]  # parallel to english_paragraphs
     glossary: dict  # lowercased EN term -> entry, merged over the selected domains
     term_candidates: list[str]  # specialized terms not yet in the glossary
+    term_domains: dict  # accepted term -> attributed domain (verifier verdict)
     resolved_terms: list[dict]  # researched entries awaiting glossary write
     translated_paragraphs: list[dict]  # {"en": str, "zh": str, "failed": bool}
     zh_title: str

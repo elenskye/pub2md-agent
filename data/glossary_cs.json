@@ -431,6 +431,104 @@
       "category": "conference",
       "source": "web_search",
       "added_date": "2026-07-04"
+    },
+    {
+      "en": "supervised machine learning",
+      "zh": "监督式机器学习",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "supervised ML",
+      "zh": "监督式ML",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "target",
+      "zh": "目标值",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "features",
+      "zh": "特征值",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "resampling methods",
+      "zh": "重抽样方法",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "k-fold cross-validation",
+      "zh": "k折交叉验证",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "holdout estimator",
+      "zh": "留出法估计器",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "expected prediction error",
+      "zh": "期望预测误差",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "individual conditional expectation",
+      "zh": "个体条件期望曲线",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "partial-dependence plots",
+      "zh": "部分依赖图",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "effect plots",
+      "zh": "效应图",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "empirical benchmark experiments",
+      "zh": "经验性基准实验",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "predictive-modeling mindset",
+      "zh": "预测性建模思维方式",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
+    },
+    {
+      "en": "predictive mindset",
+      "zh": "预测性思维方式",
+      "category": "owner-preference",
+      "source": "seed",
+      "added_date": "2026-07-19"
     }
   ]
 }

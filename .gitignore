@@ -1,17 +1,26 @@
+# Python
 __pycache__/
 *.pyc
-.env
-outputs/
-.venv/
 *.egg-info/
-.DS_Store
-eval/results/
-README_CHINESE.md
-logs/
+.pytest_cache/
+
+# Local-only notes, secrets and editor settings
 CLAUDE.md
-data/glossary.db*
-var/
-webapp/db.sqlite3
+.env
 .claude/
+.vscode/
+
+# Generated data (glossary DB auto-seeds from the versioned JSON seeds)
+data/glossary.db*
+webapp/db.sqlite3
 webapp/staticfiles/
-deploy/DEPLOYMENT.md
+var/
+outputs/
+logs/
+eval/results/
+
+# Copyrighted test material — keep samples local
+eval/test_articles/
+
+# macOS
+.DS_Store

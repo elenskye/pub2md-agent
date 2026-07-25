@@ -63,6 +63,16 @@ class CreateJobTests(AuthedTestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.json()["domains"], ["econ"])
 
+    def test_refine_flag_stored_and_defaults_off(self, submit):
+        resp = self.client.post(
+            "/api/jobs",
+            {"pdf": _upload(), "base_style": "economist", "refine": "true"},
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertTrue(resp.json()["refine"])
+        resp = self.client.post("/api/jobs", {"pdf": _upload(), "base_style": "economist"})
+        self.assertFalse(resp.json()["refine"])
+
     def test_missing_file_rejected(self, submit):
         resp = self.client.post("/api/jobs", {"base_style": "economist"})
         self.assertEqual(resp.status_code, 400)
@@ -278,3 +288,14 @@ class StageOfTests(TestCase):
         self.assertEqual(
             _stage_of({"articles": [1, 2], "results": [1, 2]}), "finished 2 article(s)"
         )
+
+    def test_percent_marks(self):
+        from .tasks import _percent_of
+
+        self.assertEqual(_percent_of({}), 2)
+        self.assertEqual(_percent_of({"raw_blocks": [1]}), 10)
+        self.assertEqual(_percent_of({"raw_blocks": [1], "cleaned_text": [1]}), 25)
+        self.assertEqual(_percent_of({"articles": [1, 2]}), 35)
+        self.assertEqual(_percent_of({"articles": [1, 2], "results": [1]}), 65)
+        # Completion caps at 95 — only the final save reports 100.
+        self.assertEqual(_percent_of({"articles": [1, 2], "results": [1, 2]}), 95)

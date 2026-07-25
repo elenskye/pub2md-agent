@@ -12,6 +12,7 @@ reached without touching Agent internals.
 """
 
 import logging
+import threading
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 
@@ -43,6 +44,22 @@ def _stage_of(state: dict) -> str:
     return "starting"
 
 
+def _percent_of(state: dict) -> int:
+    """Coarse progress for the UI bar. Fixed marks up to segmentation, then
+    the 35–95 band scales with finished articles (translation dominates the
+    wall time); the final save sets 100."""
+    results = state.get("results")
+    articles = state.get("articles")
+    if articles:
+        done = min(len(results or []), len(articles))
+        return min(35 + round(60 * done / len(articles)), 95)
+    if state.get("cleaned_text"):
+        return 25
+    if state.get("raw_blocks"):
+        return 10
+    return 2
+
+
 def _run_safely(job_id) -> None:
     from .models import Job
 
@@ -68,6 +85,7 @@ def _run(job) -> None:
 
     from src.agent.graph import build_graph
     from src.config import load_settings
+    from src.tools.progress import ProgressTracker
 
     from .models import Job
 
@@ -83,21 +101,59 @@ def _run(job) -> None:
 
     graph = build_graph()
     state: dict = {}
-    for snapshot in graph.stream(
-        {
-            "pdf_path": str(job.input_path),
-            "base_style": job.base_style,
-            "domains": job.domains,
-            "output_dir": str(job.output_dir),
-        },
-        config={"recursion_limit": 100},
-        stream_mode="values",
-    ):
-        state = snapshot
-        stage = _stage_of(state)
-        if stage != job.progress:
-            job.progress = stage
-            job.save(update_fields=["progress"])
+
+    # Batch-level progress: long LLM nodes tick a shared tracker and this
+    # poller maps the pool fractions onto the bar — gatekeeper 35–45,
+    # translation 45–95 (it dominates wall time) — while the stream loop
+    # below still handles the coarse early stages. Percent only ever moves
+    # forward: totals grow as parallel article branches register their
+    # batches, so raw fractions may dip.
+    tracker = ProgressTracker()
+    stop_poller = threading.Event()
+
+    def _poll_percent() -> None:
+        from django.db import connections
+
+        try:
+            while not stop_poller.wait(1.0):
+                if not tracker.started():
+                    continue
+                pct = min(
+                    35
+                    + round(10 * tracker.fraction("gatekeeper"))
+                    + round(50 * tracker.fraction("translate")),
+                    95,
+                )
+                if pct > job.percent:
+                    job.percent = pct
+                    job.save(update_fields=["percent"])
+        finally:
+            connections.close_all()
+
+    poller = threading.Thread(target=_poll_percent, daemon=True, name="pub2md-progress")
+    poller.start()
+    try:
+        for snapshot in graph.stream(
+            {
+                "pdf_path": str(job.input_path),
+                "base_style": job.base_style,
+                "domains": job.domains,
+                "refine": job.refine,
+                "output_dir": str(job.output_dir),
+            },
+            config={"recursion_limit": 100, "configurable": {"progress_tracker": tracker}},
+            stream_mode="values",
+        ):
+            state = snapshot
+            stage = _stage_of(state)
+            percent = max(_percent_of(state), job.percent)
+            if stage != job.progress or percent != job.percent:
+                job.progress = stage
+                job.percent = percent
+                job.save(update_fields=["progress", "percent"])
+    finally:
+        stop_poller.set()
+        poller.join(timeout=3)
 
     usage = state.get("token_usage", [])
     tokens_in = sum(u["input_tokens"] for u in usage)
@@ -113,11 +169,13 @@ def _run(job) -> None:
             for r in state.get("results", [])
         ],
         "new_terms": state.get("new_terms", []),
+        "glossary_conflicts": state.get("glossary_conflicts", []),
         "errors": state.get("errors", []),
         "llm_calls": len(usage),
         "tokens": {"input": tokens_in, "output": tokens_out},
     }
     job.status = Job.Status.DONE
     job.progress = f"finished {len(job.result['articles'])} article(s)"
+    job.percent = 100
     job.finished_at = timezone.now()
-    job.save(update_fields=["status", "progress", "result", "cost_usd", "finished_at"])
+    job.save(update_fields=["status", "progress", "percent", "result", "cost_usd", "finished_at"])

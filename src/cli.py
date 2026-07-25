@@ -41,6 +41,7 @@ def _write_run_log(args, settings, final: dict, seconds: float) -> Path:
             for r in final.get("results", [])
         ],
         "new_terms": final.get("new_terms", []),
+        "glossary_conflicts": final.get("glossary_conflicts", []),
         "errors": final.get("errors", []),
         "llm_calls": len(usage),
         "tokens": {"input": tin, "output": tout},
@@ -67,7 +68,14 @@ def _print_summary(final: dict, settings) -> None:
         print(f"\nNew glossary terms this run ({len(new_terms)}):")
         for t in new_terms:
             review = "  ← REVIEW (llm_fallback)" if t["source"] == "llm_fallback" else ""
-            print(f"  + {t['en']} => {t['zh']}  [{t['source']}]{review}")
+            print(f"  + {t['en']} => {t['zh']}  [{t.get('domain', '?')} · {t['source']}]{review}")
+
+    conflicts = final.get("glossary_conflicts", [])
+    if conflicts:
+        print(f"\nCross-domain glossary conflicts ({len(conflicts)}) — selection order won:")
+        for c in conflicts:
+            others = ", ".join(f"{s['domain']}: {s['zh']}" for s in c["shadowed"])
+            print(f"  ! {c['en']}: used {c['chosen_domain']} \"{c['chosen_zh']}\" over {others}")
 
     errors = final.get("errors", [])
     if errors:
@@ -98,6 +106,11 @@ def main() -> int:
         help="Glossary domains, in precedence order (default: the base "
         "style's usual pairing)",
     )
+    parser.add_argument(
+        "--refine",
+        action="store_true",
+        help="Second translation pass (review + rewrite; ~2x translation cost)",
+    )
     args = parser.parse_args()
     if not args.domains:
         args.domains = default_domains(args.base_style)
@@ -115,7 +128,12 @@ def main() -> int:
     t0 = time.time()
     try:
         final = graph.invoke(
-            {"pdf_path": args.pdf_path, "base_style": args.base_style, "domains": args.domains},
+            {
+                "pdf_path": args.pdf_path,
+                "base_style": args.base_style,
+                "domains": args.domains,
+                "refine": args.refine,
+            },
             config={"recursion_limit": 100},
         )
     except PDFExtractionError as exc:

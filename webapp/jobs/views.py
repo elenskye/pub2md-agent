@@ -61,6 +61,7 @@ def _create_job(request):
     base_style = request.POST.get("base_style", "economist")
     # Repeated form field; submission order is the glossary precedence order.
     domains = list(dict.fromkeys(request.POST.getlist("domains")))
+    refine = request.POST.get("refine", "").lower() in ("1", "true", "on")
 
     if upload is None:
         return JsonResponse({"error": "missing file field 'pdf'"}, status=400)
@@ -83,7 +84,7 @@ def _create_job(request):
         )
 
     job = Job.objects.create(
-        base_style=base_style, domains=domains, original_filename=upload.name
+        base_style=base_style, domains=domains, refine=refine, original_filename=upload.name
     )
     job.dir.mkdir(parents=True, exist_ok=True)
     with open(job.input_path, "wb") as fh:

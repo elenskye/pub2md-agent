@@ -67,12 +67,13 @@ class TestTableMasking:
             ]
         return rows
 
-    def test_table_body_collapsed_to_placeholder(self):
+    def test_table_body_dropped_entirely(self):
+        # v3 purity rule: no placeholder — table cells vanish from the output.
         lines = [prose(80, "Table 1: Maximum path lengths for layer types."), *self._table_rows(117), prose(200)]
         masked = mask_special_regions(lines, [PAGE])
-        placeholders = [ln for ln in masked if ln.get("special") == "table"]
-        assert len(placeholders) == 1 and placeholders[0]["text"] == "[table omitted]"
-        # caption survives
+        assert not any(ln.get("special") == "table" for ln in masked)
+        assert not any(ln["text"] == "Self-Attention" for ln in masked)
+        # the caption survives masking (the body gatekeeper removes it later)
         assert any(ln["text"].startswith("Table 1:") for ln in masked)
 
     def test_wrapped_header_cell_swallowed(self):

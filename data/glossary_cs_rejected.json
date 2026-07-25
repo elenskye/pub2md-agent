@@ -38,5 +38,148 @@
     "verdict": "reject",
     "minimal_form": "None",
     "audited_date": "2026-07-04"
+  },
+  {
+    "en": "batching",
+    "zh": "批处理",
+    "category": "Machine Learning",
+    "source": "web_search",
+    "added_date": "2026-07-04",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "2026-07-19 rubric dry-run + owner review"
+  },
+  {
+    "en": "parallelization",
+    "zh": "并行化",
+    "category": "Computing",
+    "source": "web_search",
+    "added_date": "2026-07-04",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "2026-07-19 rubric dry-run + owner review"
+  },
+  {
+    "en": "gated recurrent",
+    "zh": "门控循环",
+    "category": "Deep Learning",
+    "source": "web_search",
+    "added_date": "2026-07-03",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "2026-07-19 rubric dry-run + owner review"
+  },
+  {
+    "en": "BLEU",
+    "zh": "BLEU",
+    "category": "evaluation metric",
+    "source": "web_search",
+    "added_date": "2026-07-03",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "identity mapping purge (owner decision 2026-07-19)"
+  },
+  {
+    "en": "ByteNet",
+    "zh": "ByteNet",
+    "category": "model",
+    "source": "web_search",
+    "added_date": "2026-07-04",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "identity mapping purge (owner decision 2026-07-19)"
+  },
+  {
+    "en": "ConvS2S",
+    "zh": "ConvS2S",
+    "category": "model",
+    "source": "web_search",
+    "added_date": "2026-07-04",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "identity mapping purge (owner decision 2026-07-19)"
+  },
+  {
+    "en": "end-to-end memory networks",
+    "zh": "End-To-End Memory Networks",
+    "category": "Deep Learning",
+    "source": "web_search",
+    "added_date": "2026-07-03",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "identity mapping purge (owner decision 2026-07-19)"
+  },
+  {
+    "en": "Extended Neural GPU",
+    "zh": "Extended Neural GPU",
+    "category": "model",
+    "source": "web_search",
+    "added_date": "2026-07-04",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "identity mapping purge (owner decision 2026-07-19)"
+  },
+  {
+    "en": "mlr3",
+    "zh": "mlr3",
+    "category": "framework",
+    "source": "web_search",
+    "added_date": "2026-07-19",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "identity mapping purge (owner decision 2026-07-19)"
+  },
+  {
+    "en": "NIPS",
+    "zh": "NIPS",
+    "category": "conference",
+    "source": "web_search",
+    "added_date": "2026-07-04",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "identity mapping purge (owner decision 2026-07-19)"
+  },
+  {
+    "en": "P100",
+    "zh": "P100",
+    "category": "hardware",
+    "source": "web_search",
+    "added_date": "2026-07-04",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "identity mapping purge (owner decision 2026-07-19)"
+  },
+  {
+    "en": "tensor2tensor",
+    "zh": "Tensor2Tensor",
+    "category": "model",
+    "source": "web_search",
+    "added_date": "2026-07-04",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "identity mapping purge (owner decision 2026-07-19)"
+  },
+  {
+    "en": "WMT",
+    "zh": "WMT",
+    "category": "conference/workshop",
+    "source": "web_search",
+    "added_date": "2026-07-03",
+    "domain": "cs",
+    "verdict": "reject",
+    "audited_date": "2026-07-19",
+    "audit": "identity mapping purge (owner decision 2026-07-19)"
   }
 ]

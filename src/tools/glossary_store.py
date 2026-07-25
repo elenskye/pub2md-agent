@@ -47,6 +47,13 @@ CREATE TABLE IF NOT EXISTS terms (
 CREATE TABLE IF NOT EXISTS seeded_domains (
     domain TEXT PRIMARY KEY
 );
+CREATE TABLE IF NOT EXISTS term_occurrences (
+    domain        TEXT NOT NULL,
+    en_lower      TEXT NOT NULL,
+    article_title TEXT NOT NULL,
+    sentence      TEXT NOT NULL,
+    added_date    TEXT NOT NULL
+);
 """
 
 # Pre-v3 monolithic style names → v3 domain slugs.
@@ -97,6 +104,7 @@ def _row_to_term(row: sqlite3.Row) -> dict:
         "category": row["category"],
         "source": row["source"],
         "added_date": row["added_date"],
+        "domain": row["domain"],
     }
 
 
@@ -144,12 +152,82 @@ def load_glossary(domain: str) -> dict:
 def load_merged_glossary(domains: list[str]) -> dict[str, dict]:
     """Merged lowercased-EN → entry mapping for the selected domains.
     Selection order is the precedence order: on an EN-key collision the
-    earlier domain wins (Phase 2 adds explicit conflict reporting)."""
+    earlier domain wins."""
+    merged, _ = merge_with_conflicts(domains)
+    return merged
+
+
+def merge_with_conflicts(domains: list[str]) -> tuple[dict[str, dict], list[dict]]:
+    """Like load_merged_glossary, but also reports the collisions where the
+    selected domains actually disagree on the translation (identical zh in
+    both domains is not worth surfacing). Conflicts are what the job summary
+    shows the user for cross-domain runs."""
     merged: dict[str, dict] = {}
+    conflicts: dict[str, dict] = {}
     for domain in domains:
         for key, term in terms_by_en(load_glossary(domain)).items():
-            merged.setdefault(key, term)
-    return merged
+            winner = merged.get(key)
+            if winner is None:
+                merged[key] = term
+            elif term["zh"] != winner["zh"]:
+                conflict = conflicts.setdefault(
+                    key,
+                    {
+                        "en": winner["en"],
+                        "chosen_domain": winner["domain"],
+                        "chosen_zh": winner["zh"],
+                        "shadowed": [],
+                    },
+                )
+                conflict["shadowed"].append({"domain": term["domain"], "zh": term["zh"]})
+    return merged, list(conflicts.values())
+
+
+def record_occurrences(entries: list[dict]) -> None:
+    """Append term sightings (one row per term × article) to the wordbook
+    log. Deliberately not deduplicated: repeat sightings ARE the frequency
+    signal the Phase 4 wordbook export sorts by; re-running the same PDF
+    inflates counts, which is acceptable at this project's scale."""
+    if not entries:
+        return
+    with _connect() as conn:
+        conn.executemany(
+            "INSERT INTO term_occurrences (domain, en_lower, article_title, sentence, added_date) "
+            "VALUES (?, ?, ?, ?, ?)",
+            [
+                (
+                    e["domain"],
+                    e["en"].lower(),
+                    e["article_title"],
+                    e["sentence"],
+                    e.get("added_date") or date.today().isoformat(),
+                )
+                for e in entries
+            ],
+        )
+
+
+def rejected_keys(domains: list[str]) -> set[str]:
+    """Lowercased EN keys of terms an audit removed for these domains.
+    Used as a candidate blocklist: without it, re-running a PDF quietly
+    resurrects terms the owner deliberately deleted (observed with
+    "midnight basketball" after the 2026-07 audit)."""
+    keys: set[str] = set()
+    for domain in domains:
+        path = DATA_DIR / f"glossary_{domain}_rejected.json"
+        if path.exists():
+            for entry in json.loads(path.read_text(encoding="utf-8")):
+                keys.add(entry["en"].lower())
+    return keys
+
+
+def occurrences_for(domain: str) -> list[dict]:
+    """All recorded sightings for a domain, oldest first (Phase 4 export)."""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM term_occurrences WHERE domain = ? ORDER BY rowid", (domain,)
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def terms_by_en(doc: dict) -> dict[str, dict]:

@@ -11,12 +11,17 @@ if resolution fails entirely, translation proceeds without the new terms.
 from src.agent.state import ArticleState
 from src.tools.llm_json import loads_with_repair, strip_fences
 from src.config import get_chat_model
+from src.tools.term_rubric import is_identity_mapping
 from src.tools.web_search_tool import SearchUnavailableError, search_term
 
+# Search queries are shaped by the term's attributed DOMAIN (not the base
+# style): a cross-domain run researches each term in its own field.
 _QUERY_CONTEXT = {
-    "economist": "中文翻译 经济学人 财经报道",
-    "academy": "中文翻译 术语 人工智能 学术论文",
+    "econ": "中文翻译 经济学人 财经报道",
+    "cs": "中文翻译 术语 人工智能 学术论文",
+    "pm": "中文翻译 术语 公共管理 学术论文",
 }
+_DEFAULT_QUERY_CONTEXT = "中文翻译 术语"
 
 _RESOLVE_PROMPT = """\
 You are curating a terminology glossary used to translate {style}-style
@@ -46,12 +51,15 @@ def term_researcher(state: ArticleState) -> dict:
     if not candidates:
         return {}
     style = state["base_style"]
+    term_domains = state.get("term_domains", {})
+    fallback_domain = state["domains"][0]
     errors: list[str] = []
     usage: list[dict] = []
 
     digests: dict[str, str | None] = {}
     for term in candidates:
-        query = f'"{term}" {_QUERY_CONTEXT.get(style, "中文翻译")}'
+        domain = term_domains.get(term) or fallback_domain
+        query = f'"{term}" {_QUERY_CONTEXT.get(domain, _DEFAULT_QUERY_CONTEXT)}'
         try:
             digests[term] = search_term(query)
         except SearchUnavailableError as exc:
@@ -84,12 +92,15 @@ def term_researcher(state: ArticleState) -> dict:
             entry = raw.get(term)
             if not isinstance(entry, dict) or not str(entry.get("zh", "")).strip():
                 continue
+            if is_identity_mapping(term, str(entry["zh"])):
+                continue  # "mlr3 => mlr3" adds nothing — never store it
             resolved.append(
                 {
                     "en": term,
                     "zh": str(entry["zh"]).strip(),
                     "category": str(entry.get("category", "uncategorized")).strip(),
                     "source": "web_search" if digests[term] else "llm_fallback",
+                    "domain": term_domains.get(term) or fallback_domain,
                 }
             )
     except Exception as exc:

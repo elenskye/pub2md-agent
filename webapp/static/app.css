@@ -110,8 +110,10 @@ main {
 
 /* ---------- forms ---------- */
 
-form { display: grid; gap: 14px; justify-items: start; }
-label { display: grid; gap: 5px; font-size: 14px; color: var(--muted); }
+/* Every form control (file input, select, domain pills) shares one width
+ * so the column reads as a single aligned stack. */
+form { --control-w: 420px; display: grid; gap: 14px; justify-items: center; }
+label, .field { display: grid; gap: 5px; font-size: 14px; color: var(--muted); }
 input, select {
   font: inherit;
   padding: 8px 11px;
@@ -119,31 +121,126 @@ input, select {
   border-radius: 8px;
   background: var(--card);
   color: var(--ink);
-  min-width: 260px;
+  width: var(--control-w);
+  max-width: 100%;
 }
 input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-fieldset#domain-fieldset {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 12px 10px;
-  min-width: 260px;
-}
-fieldset#domain-fieldset legend { font-size: 14px; color: var(--muted); padding: 0 4px; }
-#domain-boxes { display: flex; gap: 14px; flex-wrap: wrap; }
-.domain-box {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  color: var(--ink);
-}
-.domain-box input[type="checkbox"] {
-  min-width: 0;
+.hint {
+  display: inline-grid;
+  place-items: center;
   width: 15px;
   height: 15px;
-  accent-color: var(--accent);
+  border: 1px solid var(--muted);
+  border-radius: 50%;
+  font-size: 10px;
+  line-height: 1;
+  cursor: help;
+  user-select: none;
 }
+
+#domain-boxes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  width: var(--control-w);
+  max-width: 100%;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.pill:hover { border-color: var(--accent); }
+.pill input { position: absolute; opacity: 0; pointer-events: none; }
+.pill:has(input:checked) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.pill:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Custom file picker: bordered shell matching the other controls, with a
+ * ghost trigger button and the chosen filename beside it. */
+.file-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: var(--control-w);
+  max-width: 100%;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+}
+#file-btn { padding: 6px 14px; flex-shrink: 0; }
+#file-name {
+  color: var(--muted);
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-box:has(+ input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* Custom dropdown: trigger styled like the inputs, floating rounded panel
+ * with hover rows (native select popups can't be themed). */
+.select { position: relative; width: var(--control-w); max-width: 100%; }
+#style-btn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: inherit;
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+  cursor: pointer;
+}
+#style-btn[aria-expanded="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+#style-btn .chev { color: var(--muted); font-size: 12px; transition: transform 0.15s; }
+#style-btn[aria-expanded="true"] .chev { transform: rotate(180deg); }
+#style-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  box-shadow: 0 10px 28px rgba(43, 37, 32, 0.13);
+}
+.select-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.select-option:hover { background: rgba(179, 67, 47, 0.08); }
+.select-option[aria-selected="true"] { color: var(--accent); font-weight: 600; }
+.select-option[aria-selected="true"]::after { content: "✓"; font-size: 13px; }
 
 button {
   font: inherit;
@@ -168,7 +265,22 @@ button.ghost:hover { background: var(--paper); }
 
 /* ---------- progress & results ---------- */
 
-#progress-box { display: flex; align-items: center; gap: 10px; margin-top: 18px; color: var(--muted); }
+#progress-box { display: grid; gap: 10px; margin-top: 18px; color: var(--muted); }
+.progress-row { display: flex; align-items: center; gap: 10px; }
+#progress-pct { margin-left: auto; font-variant-numeric: tabular-nums; }
+#progress-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+#progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.6s ease;
+}
 .spinner {
   width: 16px; height: 16px;
   border: 2px solid var(--line);
@@ -248,6 +360,6 @@ footer a:hover { text-decoration: underline; }
   header { padding: 10px 16px; }
   #hero { padding: 36px 16px 72px; }
   .card { padding: 20px 18px; }
-  input, select { min-width: 0; width: 100%; }
+  input, select, #domain-boxes, .file-box, .select { width: 100%; }
   form { justify-items: stretch; }
 }

@@ -14,6 +14,7 @@ import statistics
 import pymupdf
 
 from src.agent.state import Line, PageGeometry, Paragraph
+from src.tools.body_filters import is_caption
 
 
 class PDFExtractionError(RuntimeError):
@@ -69,7 +70,7 @@ def extract_lines(pdf_path: str) -> tuple[list[Line], list[PageGeometry]]:
     pages: list[PageGeometry] = []
     for pno, page in enumerate(doc):
         pages.append(PageGeometry(width=page.rect.width, height=page.rect.height))
-        for block in page.get_text("dict")["blocks"]:
+        for bno, block in enumerate(page.get_text("dict")["blocks"]):
             if block.get("type") != 0:  # skip images
                 continue
             for ln in block["lines"]:
@@ -88,6 +89,7 @@ def extract_lines(pdf_path: str) -> tuple[list[Line], list[PageGeometry]]:
                         y1=y1,
                         text=text,
                         font_size=max(span["size"] for span in ln["spans"]),
+                        block=bno,
                         math_only=_is_math_only(ln["spans"]),
                     )
                 )
@@ -285,6 +287,7 @@ def mask_special_regions(lines: list[Line], pages: list[PageGeometry]) -> list[L
                         y1=max(l["y1"] for l in run),
                         text=" ".join(l["text"] for l in run),
                         font_size=max(l["font_size"] for l in run),
+                        block=run[0].get("block", -1),
                         special="formula",
                         clip=(
                             min(l["x0"] for l in run),
@@ -295,19 +298,10 @@ def mask_special_regions(lines: list[Line], pages: list[PageGeometry]) -> list[L
                     )
                 )
             elif kind == "table":
-                first = run[0]
-                masked.append(
-                    Line(
-                        page=pno,
-                        x0=first["x0"],
-                        y0=first["y0"],
-                        x1=max(l["x1"] for l in run),
-                        y1=max(l["y1"] for l in run),
-                        text="[table omitted]",
-                        font_size=first["font_size"],
-                        special="table",
-                    )
-                )
+                # v3 purity rule: table bodies are dropped entirely — the
+                # output carries no placeholder (the caption is removed
+                # later by the body gatekeeper).
+                pass
             else:
                 masked.extend(run)
             i = j
@@ -517,11 +511,67 @@ def _demote_split_callouts(paragraphs: list[Paragraph]) -> list[Paragraph]:
     return out
 
 
-def reflow(lines: list[Line]) -> list[Paragraph]:
-    """Turn noise-stripped lines into ordered paragraphs with headings marked."""
+def _stitch_dangling(
+    paragraphs: list[Paragraph], ordered_pages: set[int]
+) -> list[Paragraph]:
+    """Second, stronger stitch for VLM-ordered pages: their paragraphs are
+    split at block boundaries, so a block ending mid-sentence ALWAYS
+    continues in the next paragraph — even when the continuation starts
+    with a capitalised proper noun, which _merge_continuations refuses
+    (observed: "the founder of the Equal" / "Justice Initiative (EJI)").
+    Scoped to ordered pages; the geometric path never splits in-column.
+
+    Shape-marked crossheads (is_heading without the font signal) are NOT
+    exempt: a dangling fragment looks exactly like one to the shape
+    heuristics. A LONG "heading" that stops mid-sentence is a fragment;
+    real crossheads are short. Only font-level headings and formulas are
+    never stitched."""
+    out: list[Paragraph] = []
+    for p in paragraphs:
+        prev = out[-1] if out else None
+        if (
+            prev is not None
+            and prev["page"] in ordered_pages
+            and not prev.get("font_heading")
+            and not prev.get("special")
+            and not p.get("font_heading")
+            and not p.get("special")
+            # never glue a caption/table block onto a dangling sentence —
+            # keeping it separate lets the caption filter remove it
+            and not is_caption(p["text"])
+            and len(prev["text"]) >= 45
+            and not prev["text"].endswith(_TERMINAL_PUNCT)
+        ):
+            prev["text"] = _join(prev["text"], p["text"])
+            prev["is_heading"] = False
+            continue
+        out.append(dict(p))  # type: ignore[arg-type]
+    return out
+
+
+def reflow(lines: list[Line], ordered_pages: set[int] = frozenset()) -> list[Paragraph]:
+    """Turn noise-stripped lines into ordered paragraphs with headings
+    marked. Pages in ordered_pages arrive already in reading order (VLM
+    layout) and skip geometric column clustering — their line sequence is
+    reflowed as-is."""
     paragraphs: list[Paragraph] = []
     for page in sorted({ln["page"] for ln in lines}):
         page_lines = [ln for ln in lines if ln["page"] == page]
+        if page in ordered_pages:
+            # Block boundaries are paragraph boundaries: pymupdf blocks are
+            # natural paragraph units, and reflowing per block keeps the
+            # adaptive gap thresholds from gluing separate blocks together.
+            # Paragraphs split across a column break (two blocks) are
+            # stitched back by _merge_continuations below.
+            groups: list[tuple[int, list[Line]]] = []
+            for ln in page_lines:
+                if groups and groups[-1][0] == ln.get("block", -1):
+                    groups[-1][1].append(ln)
+                else:
+                    groups.append((ln.get("block", -1), [ln]))
+            for _, group in groups:
+                paragraphs.extend(_reflow_column(group))
+            continue
         for col in _cluster_columns(page_lines):
             paragraphs.extend(_reflow_column(col))
     # Headings are marked before continuation merging so that a heading is
@@ -529,4 +579,7 @@ def reflow(lines: list[Line]) -> list[Paragraph]:
     # (and rejoined) in between.
     _mark_headings(paragraphs)
     paragraphs = _demote_split_callouts(paragraphs)
-    return _merge_continuations(paragraphs)
+    paragraphs = _merge_continuations(paragraphs)
+    if ordered_pages:
+        paragraphs = _stitch_dangling(paragraphs, ordered_pages)
+    return paragraphs

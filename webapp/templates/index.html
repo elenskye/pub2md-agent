@@ -48,21 +48,50 @@
       <div id="job-panel" hidden>
         <h2>Upload a PDF</h2>
         <form id="job-form">
-          <input id="pdf-input" type="file" accept=".pdf" required>
-          <label>Translation style
-            <select id="style-select"></select>
-          </label>
-          <fieldset id="domain-fieldset">
-            <legend>Glossary domains <small>(order shown = precedence)</small></legend>
+          <div class="field">
+            <span>PDF file</span>
+            <div class="file-box">
+              <button type="button" id="file-btn" class="ghost">Choose PDF</button>
+              <span id="file-name">No file selected</span>
+            </div>
+            <input id="pdf-input" type="file" accept=".pdf" class="visually-hidden" tabindex="-1">
+          </div>
+          <div class="field">
+            <span>Translation style</span>
+            <div class="select" id="style-select-wrap">
+              <button type="button" id="style-btn" aria-haspopup="listbox" aria-expanded="false">
+                <span id="style-current"></span><span class="chev">▾</span>
+              </button>
+              <div id="style-panel" role="listbox" hidden></div>
+            </div>
+          </div>
+          <div class="field">
+            <span>Glossary domains
+              <span class="hint" tabindex="0"
+                    title="Multi-select. When domains disagree on a term's translation, the first selected one wins; conflicts are listed in the result.">?</span>
+            </span>
             <div id="domain-boxes"></div>
-          </fieldset>
+          </div>
+          <div class="field">
+            <span>Quality
+              <span class="hint" tabindex="0"
+                    title="A second pass reviews and rewrites every draft paragraph against the source and the glossary. Roughly doubles translation time and cost.">?</span>
+            </span>
+            <label class="pill" id="refine-pill">
+              <input type="checkbox" id="refine-input">Refine translation
+            </label>
+          </div>
           <button type="submit" id="start-btn">Translate</button>
           <p id="job-error" class="error" role="alert"></p>
         </form>
 
         <div id="progress-box" hidden>
-          <div class="spinner"></div>
-          <span id="progress-text"></span>
+          <div class="progress-row">
+            <div class="spinner"></div>
+            <span id="progress-text"></span>
+            <span id="progress-pct"></span>
+          </div>
+          <div id="progress-bar"><div id="progress-fill"></div></div>
         </div>
 
         <div id="result-box" hidden>
@@ -72,6 +101,10 @@
           <details id="new-terms-box" hidden>
             <summary>New glossary terms this run</summary>
             <ul id="new-terms-list"></ul>
+          </details>
+          <details id="conflicts-box" hidden>
+            <summary>Cross-domain term conflicts</summary>
+            <ul id="conflicts-list"></ul>
           </details>
         </div>
       </div>

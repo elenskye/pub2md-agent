@@ -84,8 +84,47 @@ def test_merged_glossary_earlier_domain_wins(store):
     glossary_store.add_terms("cs", [{"en": "token", "zh": "token"}, {"en": "SOTA", "zh": "SOTA"}])
     merged = glossary_store.load_merged_glossary(["econ", "cs"])
     assert merged["token"]["zh"] == "代币"  # precedence: selection order
+    assert merged["token"]["domain"] == "econ"  # entries know their home domain
     assert merged["sota"]["zh"] == "SOTA"  # non-conflicting terms merge in
     assert glossary_store.load_merged_glossary(["cs", "econ"])["token"]["zh"] == "token"
+
+
+def test_merge_reports_only_real_conflicts(store):
+    glossary_store.add_terms("econ", [{"en": "token", "zh": "代币"}, {"en": "IPO", "zh": "IPO"}])
+    glossary_store.add_terms("cs", [{"en": "token", "zh": "token"}, {"en": "IPO", "zh": "IPO"}])
+    _, conflicts = glossary_store.merge_with_conflicts(["econ", "cs"])
+    # IPO agrees across domains → not a conflict; token disagrees → reported.
+    assert len(conflicts) == 1
+    c = conflicts[0]
+    assert c["en"] == "token" and c["chosen_domain"] == "econ" and c["chosen_zh"] == "代币"
+    assert c["shadowed"] == [{"domain": "cs", "zh": "token"}]
+    assert glossary_store.merge_with_conflicts(["econ"])[1] == []
+
+
+def test_occurrences_roundtrip(store):
+    glossary_store.record_occurrences(
+        [
+            {
+                "domain": "econ",
+                "en": "Quantitative Easing",
+                "article_title": "A story",
+                "sentence": "Quantitative easing returned.",
+            },
+            {
+                "domain": "cs",
+                "en": "token",
+                "article_title": "A paper",
+                "sentence": "Each token is embedded.",
+            },
+        ]
+    )
+    glossary_store.record_occurrences([])  # no-op must not error
+    rows = glossary_store.occurrences_for("econ")
+    assert len(rows) == 1
+    assert rows[0]["en_lower"] == "quantitative easing"
+    assert rows[0]["article_title"] == "A story"
+    assert rows[0]["added_date"]
+    assert len(glossary_store.occurrences_for("cs")) == 1
 
 
 def test_remove_terms_returns_removed_entries(store):
