@@ -21,8 +21,10 @@ async function api(path, options = {}) {
 async function boot() {
   const resp = await api("/api/me");
   if (resp.ok) {
-    const { username } = await resp.json();
-    showApp(username);
+    const { username, auth } = await resp.json();
+    // auth === false → PUB2MD_AUTH=off, a local single-user run: no login
+    // panel, no account chip in the header.
+    showApp(auth === false ? null : username);
   } else {
     $("login-panel").hidden = false;
   }
@@ -116,8 +118,10 @@ $("howto-btn").addEventListener("click", () => $("howto-dialog").showModal());
 $("howto-close").addEventListener("click", () => $("howto-dialog").close());
 
 async function showApp(username) {
-  $("username").textContent = username;
-  $("user-box").hidden = false;
+  if (username) {
+    $("username").textContent = username;
+    $("user-box").hidden = false;
+  }
   $("login-panel").hidden = true;
   $("job-panel").hidden = false;
   styleMeta = await (await api("/api/styles")).json();

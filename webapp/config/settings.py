@@ -96,11 +96,28 @@ TIME_ZONE = "Asia/Singapore"
 USE_TZ = True
 
 # --- pub2md-specific knobs ---------------------------------------------
+# Auth is a shared-installation feature: two accounts, one live session each.
+# On a single-user local install it is pure friction, so PUB2MD_AUTH=off
+# drops the login wall. It is refused whenever DJANGO_DEBUG=false, i.e.
+# whenever the app is configured to be served for real — an unauthenticated
+# pub2md reachable from a network would hand strangers the owner's API keys.
+_auth_setting = os.getenv("PUB2MD_AUTH", "on").strip().lower()
+if not DEBUG and _auth_setting == "off":
+    raise RuntimeError(
+        "PUB2MD_AUTH=off is only allowed with DJANGO_DEBUG=true (a local run). "
+        "Serving pub2md without a login wall would expose the API keys."
+    )
+AUTH_ENABLED = _auth_setting != "off"
+
 # Per-job working data (uploads + generated markdown), outside the repo's
 # CLI outputs/ so web jobs never collide with terminal runs.
 JOBS_ROOT = Path(os.getenv("PUB2MD_JOBS_ROOT", REPO_ROOT / "var" / "webapp" / "jobs"))
-MAX_UPLOAD_MB = int(os.getenv("PUB2MD_MAX_UPLOAD_MB", "25"))
-MAX_PDF_PAGES = int(os.getenv("PUB2MD_MAX_PDF_PAGES", "100"))
+# 25 MB / 100 pages were anti-abuse limits for two guest accounts on a
+# public URL. On a local install the only thing they protect is the owner
+# from his own upload, so they start much higher — still env-driven, lower
+# them again for any shared installation.
+MAX_UPLOAD_MB = int(os.getenv("PUB2MD_MAX_UPLOAD_MB", "100"))
+MAX_PDF_PAGES = int(os.getenv("PUB2MD_MAX_PDF_PAGES", "500"))
 # Hard monthly spend ceiling across all jobs (the API keys are the owner's).
 MONTHLY_BUDGET_USD = float(os.getenv("PUB2MD_MONTHLY_BUDGET_USD", "5.0"))
 # Housekeeping: terminal jobs (rows + files) are deleted after this many

@@ -4,6 +4,26 @@ What has already been built. Planned work lives in [ROADMAP.md](ROADMAP.md).
 
 Newest first.
 
+## Phase 6 — Local-first web app
+
+The web app was built to face the public internet. With no hosted instance,
+parts of it were friction rather than protection.
+
+- **Login wall is now a switch.** `PUB2MD_AUTH=off` (settings
+  `AUTH_ENABLED`) drops the login page and the one-session-per-account
+  rule; `/api/me` answers `{"auth": false}` so the UI skips straight to the
+  tool. Default is **on**, and `off` is *refused* when `DJANGO_DEBUG=false`
+  — a served instance always has a wall, because an open pub2md hands out
+  the API keys in `.env`. The auth tests pin `AUTH_ENABLED=True` so the
+  suite no longer depends on the local `.env`.
+- **No CDN.** marked 12.0.2 and KaTeX 0.16.11 are vendored into
+  `webapp/static/vendor/` (woff2 faces only, the woff/ttf sources stripped
+  from the CSS: 632 KB total). The page now issues zero external requests,
+  so formulas render offline.
+- **Guard rails re-tuned for one user**: upload limits 25 MB → 100 MB and
+  100 → 500 pages, still env-driven. The monthly budget guard stays as it
+  is — it protects the owner's own wallet, not a stranger's.
+
 ## Hosted deployment retired (2026-09-01)
 
 The DigitalOcean droplet behind pub2md.duckdns.org is gone; pub2md is a
@@ -16,8 +36,11 @@ verified file-by-file against server checksums, in
 server had grown and the local store had never seen were exported as a v3
 candidate batch. The Django app **stays** — it is the local front end, and
 nothing about it was hosting-specific: every production setting was already
-env-driven. What went with the droplet is `deploy/` (nginx + systemd), the
-`gunicorn` dependency, and every doc reference to a future cutover.
+env-driven. A deployment is expected again eventually, so the cloud pieces
+are parked rather than deleted: `deploy/` (nginx + systemd) carries a
+PARKED banner, and gunicorn moved to the optional `server` extra in
+`pyproject.toml`. Cloud plans are off the roadmap until the owner asks for
+them; this file is the only place the hosted era is described.
 
 ## v3 — two-axis styles, output purity, layout accuracy
 

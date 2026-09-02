@@ -4,13 +4,14 @@ from io import StringIO
 
 from django.contrib.auth.models import User
 from django.core.management import call_command
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 
 
 def make_user(name="guest1", password="pw-123456"):
     return User.objects.create_user(username=name, password=password)
 
 
+@override_settings(AUTH_ENABLED=True)
 class LoginTests(TestCase):
     def setUp(self):
         make_user()
@@ -45,6 +46,7 @@ class LoginTests(TestCase):
         self.assertEqual(self.client.get("/api/me").status_code, 401)
 
 
+@override_settings(AUTH_ENABLED=True)
 class SingleActiveSessionTests(TestCase):
     def setUp(self):
         make_user()
@@ -65,6 +67,7 @@ class SingleActiveSessionTests(TestCase):
         self.assertEqual(self.client.get("/api/me").status_code, 200)
 
 
+@override_settings(AUTH_ENABLED=True)
 class JobsApiRequiresAuthTests(TestCase):
     def test_all_job_endpoints_reject_anonymous(self):
         self.assertEqual(self.client.get("/api/styles").status_code, 401)
@@ -80,6 +83,7 @@ class JobsApiRequiresAuthTests(TestCase):
         )
 
 
+@override_settings(AUTH_ENABLED=True)
 class RotateAccountsTests(TestCase):
     def test_rotation_creates_accounts_and_new_credentials_work(self):
         out = StringIO()
@@ -99,3 +103,26 @@ class RotateAccountsTests(TestCase):
 
         call_command("rotate_accounts", stdout=StringIO())
         self.assertEqual(self.client.get("/api/me").status_code, 401)
+
+
+@override_settings(AUTH_ENABLED=False)
+class AuthDisabledTests(TestCase):
+    """PUB2MD_AUTH=off: the local single-user mode. The wall is down, but
+    every endpoint still answers and the UI can tell why."""
+
+    def test_me_reports_no_auth_instead_of_401(self):
+        resp = self.client.get("/api/me")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json(), {"auth": False, "username": None})
+
+    def test_job_endpoints_open_to_anonymous(self):
+        self.assertEqual(self.client.get("/api/styles").status_code, 200)
+        self.assertEqual(self.client.get("/api/jobs").status_code, 200)
+
+    def test_logout_is_a_noop(self):
+        self.assertEqual(self.client.post("/api/logout").json(), {"ok": True})
+
+    def test_login_does_not_pretend_to_authenticate(self):
+        resp = self.client.post("/api/login", {"username": "guest1", "password": "nope"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIs(resp.json()["auth"], False)

@@ -5,10 +5,9 @@ What is still planned. Finished work lives in [CHANGELOG.md](CHANGELOG.md).
 Working rules for the remaining v3 phases:
 
 - One phase at a time: plan → confirm → implement → verify with the full
-  pytest suite **and** at least one real-PDF run.
-- There is nowhere to ship to: the hosted deployment was retired on
-  2026-09-01 and pub2md is a local tool. "Done" means green on the dev
-  machine, committed to `main`, and the four documents updated.
+  pytest suite **and** at least one real run.
+- Done means green on the dev machine, committed to `main`, and the four
+  documents updated. There is no deployment step.
 
 Standing scope decisions (settled, not up for casual relitigation):
 
@@ -18,23 +17,8 @@ Standing scope decisions (settled, not up for casual relitigation):
 - No figure/image extraction. No VLM for inline math.
 - Terminology stays a generate-critique pipeline, not a free-form
   multi-agent system.
-- The Django app stays. It is the local front end — preview, KaTeX, job
-  history, zip download — not a hosting artifact.
-
-## Phase 6 — Local-first web app
-
-The web app was built to face the public internet. Nothing serves that
-purpose any more, and some of it is now pure friction.
-
-- **Auth off-switch**: `PUB2MD_AUTH=off` (default `on`) skips login and the
-  single-active-session rule when the app is bound to localhost. Keep the
-  code — a shared installation may come back — but do not make the owner
-  log in to translate a PDF on his own laptop.
-- **Vendor KaTeX + marked** into `webapp/static/` (was in the old Phase 8).
-  A local tool that needs a CDN to render a formula is broken on a train.
-- **Guard rails become local defaults**: `PUB2MD_MAX_UPLOAD_MB=25` /
-  `PUB2MD_MAX_PDF_PAGES=100` were anti-abuse limits for two guest accounts.
-  Raise the defaults, keep them env-driven, and document the reason.
+- The Django app stays: it is the local front end — preview, KaTeX, job
+  history, zip download — and the agent never depends on it.
 
 ## Phase 7 — Wordbook export
 
@@ -74,7 +58,8 @@ CSV imports as-is.
 ## Backlog (not scheduled)
 
 - Demo recording for the README.
-- Retire the candidate export/import path (`manage.py export_candidates`,
-  `GET /api/glossary/candidates`, `audit_glossary --import-batch`) if a
-  second installation never materialises. Harmless and tested; delete only
-  when it is certain it will never be needed.
+- Glossary enforcement over-applies on general prose (`features => 特征值`
+  turning "both features off" into "两个特征值均关闭"). Inherent to hard
+  glossary constraints; a fix would mean softening enforcement for
+  non-technical sentences, which risks the consistency the glossary exists
+  for. Choosing the right `--domains` is the current answer.

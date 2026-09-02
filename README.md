@@ -30,9 +30,9 @@ What it actually does beyond "call an LLM":
   the harness is being overhauled and re-run before the v3 release, so read
   these as relative, not current.
 
-Status: v1 (agent) and v2 (web app) are done; v3 is in progress. Everything
-runs locally — the hosted deployment was retired on 2026-09-01. See
-[CHANGELOG.md](CHANGELOG.md) and [ROADMAP.md](ROADMAP.md).
+Status: v1 (agent) and v2 (web app) are done; v3 is in progress. It runs on
+your own machine. See [CHANGELOG.md](CHANGELOG.md) and
+[ROADMAP.md](ROADMAP.md).
 
 ## How to use it
 
@@ -40,10 +40,12 @@ Two front ends over one pipeline: the CLI (see the developer guide) and a
 local web app — start it with the `runserver` command below and open
 http://127.0.0.1:8642/.
 
-1. Log in with an account from `manage.py rotate_accounts`. Each account
-   allows one active session; logging in elsewhere signs the other device
-   out. **How to Use** in the tool card summarises the rest of this list.
-2. Upload a PDF (limits: 25 MB, 100 pages) and watch the progress bar. A
+1. With `PUB2MD_AUTH=off` (the local setting) the page opens straight into
+   the tool. With the login wall on, sign in with an account from
+   `manage.py rotate_accounts`; each account allows one active session, so
+   logging in elsewhere signs the other device out. **How to Use** in the
+   tool card summarises the rest of this list.
+2. Upload a PDF (limits: 100 MB, 500 pages) and watch the progress bar. A
    `.md` file works too: it is translated in place — same headings, tables,
    code blocks and links, Chinese only, one file out.
 3. Pick a **translation style**: `economist` (journalism), `academy`
@@ -78,13 +80,15 @@ webapp/                     Django 5 thin shell — HTTP, auth, jobs, files only
 ├── config/                 settings / urls / wsgi (reads the repo-root .env)
 ├── jobs/                   Job model, thread-pool executor, JSON API, sweeps
 ├── accounts/               Two rotatable accounts, single active session
-├── templates/, static/     Single-page UI (vanilla JS, marked + KaTeX)
+├── templates/, static/     Single-page UI (vanilla JS); static/vendor/
+│                           holds marked + KaTeX, no CDN at runtime
 └── manage.py
 data/                       glossary_<domain>.json seeds + _rejected archives
                             (glossary.db is generated, not tracked)
 eval/                       run_eval.py, metrics.py, manifest.json, test PDFs
 scripts/audit_glossary.py   Re-judge glossary entries against the term rubric
 tests/                      pytest suite — pure logic, no API spend
+deploy/                     nginx + systemd, parked for a future deployment
 .env.example                Every environment variable, with defaults
 pyproject.toml              Dependencies + pytest/Django configuration
 README.md / ROADMAP.md / CHANGELOG.md
@@ -113,18 +117,17 @@ flowchart TD
 
 ### Where it runs
 
-On the dev machine only: the CLI directly, the web app under `manage.py
+On your own machine: the CLI directly, the web app under `manage.py
 runserver`. State lives in `data/glossary.db`, `webapp/db.sqlite3` and job
 files under `var/`, none of it in git. Job files are deleted after
 `PUB2MD_JOB_RETENTION_DAYS`; the glossary DB is the one worth backing up,
-it holds terms grown over many runs.
+it holds terms grown over many runs. Nothing is fetched from a CDN — KaTeX
+and marked are vendored in `webapp/static/vendor/`, so maths renders
+offline.
 
-There is no hosted deployment and none is planned: the DigitalOcean droplet
-behind pub2md.duckdns.org was retired on 2026-09-01, and its nginx/systemd
-config went with it (kept in the backup and in git history). The Django app
-stays — it is the convenient front end for local use, and it is what makes
-`.md` preview, KaTeX rendering and the job history worth having over the
-CLI.
+`deploy/` (nginx + systemd) and the `server` extra in `pyproject.toml` are
+parked, not current: no hosted instance exists today, nothing local reads
+them, and they are kept for whenever one is set up again.
 
 ### Local development
 
@@ -230,8 +233,9 @@ entirely.
 | `VLM_MODEL/_API_KEY/_BASE_URL` | vision model — formula transcription **and** layout ordering. Unset ⇒ both features off, the run still works |
 | `VLM_LAYOUT=off` | keep the VLM for formulas but force geometric column parsing |
 | `TRANSLATE_CONCURRENCY`, `VLM_LAYOUT_CONCURRENCY` | parallelism (defaults 4) |
-| `DJANGO_DEBUG/_SECRET_KEY/_ALLOWED_HOSTS/_CSRF_TRUSTED_ORIGINS` | production Django settings |
-| `PUB2MD_MAX_UPLOAD_MB`, `PUB2MD_MAX_PDF_PAGES` | upload guards (25 / 100) |
+| `PUB2MD_AUTH` | `off` drops the login wall for a local run; refused when `DJANGO_DEBUG=false` |
+| `DJANGO_DEBUG/_SECRET_KEY/_ALLOWED_HOSTS/_CSRF_TRUSTED_ORIGINS` | Django settings for serving it to others |
+| `PUB2MD_MAX_UPLOAD_MB`, `PUB2MD_MAX_PDF_PAGES` | upload guards (100 / 500) |
 | `PUB2MD_MONTHLY_BUDGET_USD` | spend ceiling; uploads get HTTP 429 once reached |
 | `PUB2MD_JOB_RETENTION_DAYS`, `PUB2MD_JOB_STALE_MINUTES` | history sweep, orphan detection |
 | `PUB2MD_ACCOUNTS` | account names for `manage.py rotate_accounts` |
@@ -243,9 +247,14 @@ run duplicate jobs and double-count spend. That is what `runserver
 --noreload` gives you; anything else (gunicorn, uvicorn) must be pinned to
 one worker and scaled with threads.
 
-**KaTeX and marked come from a CDN.** `webapp/templates/index.html` loads
-them from jsdelivr. Offline, math and Markdown preview silently degrade. Vendoring them into `webapp/static/` is a
-scheduled roadmap item.
+**Do I have to log in?** Not locally: `PUB2MD_AUTH=off` skips the login wall
+and the one-session-per-account rule. The switch is refused whenever
+`DJANGO_DEBUG=false`, so an instance configured to be served always has a
+wall — an open pub2md would hand strangers the API keys in your `.env`.
+
+**Does anything load from the internet?** No. marked 12.0.2 and KaTeX
+0.16.11 (woff2 fonts only, ~630 KB) live in `webapp/static/vendor/`. The
+page makes no external request, so maths renders on a plane.
 
 **Where does the glossary live?** `data/glossary.db` (generated, not in
 git) imports the versioned `data/glossary_<domain>.json` seeds whenever

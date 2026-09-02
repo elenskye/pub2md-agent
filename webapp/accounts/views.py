@@ -5,12 +5,17 @@ POST /api/login   — {username, password} (form or JSON) → starts the one
 POST /api/logout  — end the current session
 GET  /api/me      — current account, or 401
 
+With PUB2MD_AUTH=off (settings.AUTH_ENABLED False) there is no login wall:
+/api/me reports {"auth": false} so the UI can skip the login panel, and the
+other two endpoints become no-ops.
+
 CSRF is enforced (Phase 4): clients read the csrftoken cookie planted by
 the UI page and echo it in the X-CSRFToken header on every POST.
 """
 
 import json
 
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.sessions.models import Session
 from django.http import JsonResponse
@@ -32,6 +37,8 @@ def _credentials(request) -> tuple[str, str]:
 
 @require_POST
 def login_view(request):
+    if not settings.AUTH_ENABLED:
+        return JsonResponse({"auth": False, "username": None})
     username, password = _credentials(request)
     user = authenticate(request, username=username, password=password)
     if user is None:
@@ -53,6 +60,8 @@ def login_view(request):
 @require_POST
 @api_login_required
 def logout_view(request):
+    if not settings.AUTH_ENABLED:
+        return JsonResponse({"ok": True})
     ActiveSession.objects.filter(user=request.user).delete()
     logout(request)
     return JsonResponse({"ok": True})
@@ -61,4 +70,6 @@ def logout_view(request):
 @require_GET
 @api_login_required
 def me(request):
-    return JsonResponse({"username": request.user.username})
+    if not settings.AUTH_ENABLED:
+        return JsonResponse({"auth": False, "username": None})
+    return JsonResponse({"auth": True, "username": request.user.username})

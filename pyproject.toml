@@ -15,6 +15,11 @@ dependencies = [
     "whitenoise>=6.6",
 ]
 
+[project.optional-dependencies]
+# Serving the app to anything other than localhost. Not needed for local
+# use; `pip install -e ".[server]"` when a deployment happens again.
+server = ["gunicorn>=22.0"]
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"
 testpaths = ["tests", "webapp"]

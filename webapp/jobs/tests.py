@@ -25,8 +25,10 @@ def _upload(name="a.pdf", content=PDF_BYTES):
 
 
 @override_settings(JOBS_ROOT=_TMP_JOBS)
+@override_settings(AUTH_ENABLED=True)
 class AuthedTestCase(TestCase):
-    """All jobs endpoints sit behind the login wall (Phase 3)."""
+    """All jobs endpoints sit behind the login wall (Phase 3). Pinned on,
+    so the suite is not at the mercy of the local PUB2MD_AUTH setting."""
 
     def setUp(self):
         User.objects.create_user(username="guest1", password="pw-123456")
