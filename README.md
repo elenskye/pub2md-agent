@@ -3,7 +3,8 @@
 A LangGraph agent that turns a PDF — an Economist-style issue, a news
 export, an academic paper, a Traditional-Chinese article — into clean
 bilingual (English + Simplified Chinese) Markdown notes, one file per
-article.
+article. Hand it a `.md` file instead and it returns a Chinese-only
+translation with the document's structure untouched.
 
 What it actually does beyond "call an LLM":
 
@@ -17,9 +18,11 @@ What it actually does beyond "call an LLM":
 - **Terminology that stays consistent across runs.** Per-domain glossaries
   grown from web search, gated by a grounding filter and a
   keep/rewrite/reject rubric before any search is spent, then enforced
-  during translation.
+  during translation. New terms enter as candidates and only become
+  authoritative through an audit that regenerates the versioned seed files.
 - **Two independent axes.** Base style (tone/layout) × glossary domains, so
-  an academic paper can be translated with the cs *and* pm vocabularies.
+  an academic paper can be translated with the cs *and* pm vocabularies —
+  or with no glossary at all when the source is general prose.
 - **Measured, not asserted.** `eval/` scores the agent against a
   single-shot baseline: terminology consistency 81.8% vs 0%, multi-article
   split 5/5 vs 4/5, LLM-judge 4.2–4.8 vs 1.0–3.0. Last full run was on the
@@ -27,24 +30,32 @@ What it actually does beyond "call an LLM":
   the harness is being overhauled and re-run before the v3 release, so read
   these as relative, not current.
 
-Status: v1 (agent) and v2 (web app) are live; v3 is in progress locally.
-See [CHANGELOG.md](CHANGELOG.md) and [ROADMAP.md](ROADMAP.md).
+Status: v1 (agent) and v2 (web app) are done; v3 is in progress. Everything
+runs locally — the hosted deployment was retired on 2026-09-01. See
+[CHANGELOG.md](CHANGELOG.md) and [ROADMAP.md](ROADMAP.md).
 
 ## How to use it
 
-The web app is at **https://pub2md.duckdns.org** — access is limited to two
-accounts, ask the owner for one.
+Two front ends over one pipeline: the CLI (see the developer guide) and a
+local web app — start it with the `runserver` command below and open
+http://127.0.0.1:8642/.
 
-1. Log in. Each account allows one active session; logging in elsewhere
-   signs the other device out.
-2. Pick a **base style** (economist / academy) and one or more **glossary
-   domains** (econ / cs / pm). Domains are ordered — when two domains
-   translate the same term differently, the one you selected first wins and
-   the conflict is reported with the result.
-3. Optionally tick **Refine translation** for a second review-and-rewrite
-   pass (better prose, roughly double the translation cost and time).
-4. Upload a PDF (limits: 25 MB, 100 pages) and watch the progress bar.
-5. Preview each article in the browser (Markdown + KaTeX math) and download
+1. Log in with an account from `manage.py rotate_accounts`. Each account
+   allows one active session; logging in elsewhere signs the other device
+   out. **How to Use** in the tool card summarises the rest of this list.
+2. Upload a PDF (limits: 25 MB, 100 pages) and watch the progress bar. A
+   `.md` file works too: it is translated in place — same headings, tables,
+   code blocks and links, Chinese only, one file out.
+3. Pick a **translation style**: `economist` (journalism), `academy`
+   (papers) or `general` (neutral written Chinese for anything else).
+4. Pick any number of **glossary domains** (econ / cs / pm) to force
+   consistent terminology. Domains are ordered — when two disagree on a
+   term, the one selected first wins and the conflict is reported with the
+   result. Selecting none translates without a glossary, which is what
+   `general` preselects.
+5. **Translate** runs one pass; **Refined Translation** adds a second
+   review-and-rewrite pass — better prose, roughly double the cost and time.
+6. Preview each article in the browser (Markdown + KaTeX math) and download
    all of them as a zip.
 
 Recent jobs stay in the history list; **Clear history** removes them, and
@@ -57,8 +68,8 @@ src/                        Agent core (LangGraph)
 ├── agent/graph.py          Main graph + per-article subgraph, Send fan-out
 ├── agent/nodes/            One file per pipeline node
 ├── agent/state.py          Typed state; reducers keep parallel branches apart
-├── tools/                  PDF layout, VLM layout, glossary store, filters,
-│                           JSON repair, progress, web search
+├── tools/                  PDF layout, VLM layout, markdown fences, glossary
+│                           store, filters, JSON repair, progress, search
 ├── prompts/*_style.md      Base-style prompts (a new file = a new style)
 ├── styles.py               Single source of truth for base styles × domains
 ├── config.py               Prefix-scoped provider config (LLM_* / VLM_*)
@@ -74,7 +85,6 @@ data/                       glossary_<domain>.json seeds + _rejected archives
 eval/                       run_eval.py, metrics.py, manifest.json, test PDFs
 scripts/audit_glossary.py   Re-judge glossary entries against the term rubric
 tests/                      pytest suite — pure logic, no API spend
-deploy/                     nginx.conf, pub2md.service (copied to the droplet)
 .env.example                Every environment variable, with defaults
 pyproject.toml              Dependencies + pytest/Django configuration
 README.md / ROADMAP.md / CHANGELOG.md
@@ -103,23 +113,23 @@ flowchart TD
 
 ### Where it runs
 
-| | |
-|---|---|
-| Live app | https://pub2md.duckdns.org |
-| Host | DigitalOcean droplet (Ubuntu 24.04), repo at `/opt/pub2md-agent` |
-| Stack | nginx → gunicorn (**1 worker**) → Django; TLS via certbot; systemd unit `pub2md` |
-| Data | `data/glossary.db`, `webapp/db.sqlite3`, job files in `var/` — all on the droplet disk |
-| Config artifacts | `deploy/nginx.conf`, `deploy/pub2md.service` |
+On the dev machine only: the CLI directly, the web app under `manage.py
+runserver`. State lives in `data/glossary.db`, `webapp/db.sqlite3` and job
+files under `var/`, none of it in git. Job files are deleted after
+`PUB2MD_JOB_RETENTION_DAYS`; the glossary DB is the one worth backing up,
+it holds terms grown over many runs.
 
-The droplet disk persists across reboots and `git pull` deploys — the
-"wiped on redeploy" hazard only applies to container platforms. Job files
-are deleted after `PUB2MD_JOB_RETENTION_DAYS`; the glossary DB is worth
-backing up, it holds terms grown over many runs.
+There is no hosted deployment and none is planned: the DigitalOcean droplet
+behind pub2md.duckdns.org was retired on 2026-09-01, and its nginx/systemd
+config went with it (kept in the backup and in git history). The Django app
+stays — it is the convenient front end for local use, and it is what makes
+`.md` preview, KaTeX rendering and the job history worth having over the
+CLI.
 
 ### Local development
 
 The dev machine uses the conda env `elen_ai_agent` — never create a
-`.venv` here (the server uses one, the dev machine does not).
+`.venv` here.
 
 ```bash
 cp .env.example .env   # pick a provider block, fill in the keys
@@ -130,9 +140,17 @@ cp .env.example .env   # pick a provider block, fill in the keys
 ```
 
 `--domains` accepts several values in precedence order and defaults to the
-base style's usual pairing; add `--refine` for the second translation pass.
+base style's usual pairing; pass it with no value to translate without a
+glossary. Add `--refine` for the second translation pass.
 Output lands in `outputs/` (one `.md` per article), with a run summary on
 stdout and a structured record in `logs/run-<timestamp>.json`.
+
+The same entry point handles Markdown — the suffix picks the path, and the
+output is `<name>-zh.md`, Chinese only, structure preserved:
+
+```bash
+/opt/homebrew/Caskroom/miniconda/base/envs/elen_ai_agent/bin/python -m src.cli notes/handbook.md --base-style academy --domains cs
+```
 
 Web app locally:
 
@@ -155,81 +173,39 @@ Tests and tooling:
 /opt/homebrew/Caskroom/miniconda/base/envs/elen_ai_agent/bin/python -m scripts.audit_glossary --domain cs --dry-run
 ```
 
-- `python -m pytest -q` — 155 tests over layout logic, filters, the JSON
-  repair parser, the glossary store, term gating, progress and the eval
-  metrics. No API keys needed, no spend.
+- `python -m pytest -q` — 196 tests over layout logic, filters, the JSON
+  repair parser, the glossary store, term gating, the Markdown fences,
+  progress and the eval metrics. No API keys needed, no spend.
 - `python -m eval.run_eval [--skip-judge|--skip-baseline|--only <substr>]`
   — agent vs single-shot baseline over `eval/manifest.json`.
 - `python -m scripts.audit_glossary --domain <d> [--dry-run]` — re-judges
   researched entries; rejects are archived to
   `data/glossary_<domain>_rejected.json`, never deleted.
 
-### First-time server setup
+### Keeping the glossary authoritative
 
-Only needed when rebuilding the droplet from scratch. Every step is manual.
-
-1. **Droplet & DNS** — an Ubuntu 24.04 basic droplet ($6/mo tier is enough).
-   Point the domain at its public IP: this project uses a free DuckDNS
-   subdomain, so set `current ip` in the DuckDNS panel and click *update
-   ip* (a registrar domain works too — add an A record instead). Then, as
-   root: `adduser pub2md && usermod -aG sudo pub2md` and
-   `apt update && apt install -y python3.12-venv nginx certbot python3-certbot-nginx git`.
-2. **Code & env** — as the `pub2md` user, clone into `/opt/pub2md-agent`,
-   then `python3 -m venv .venv` and `.venv/bin/pip install -e .` plus
-   `tavily-python` (and `pytest-django` if you want to run tests there).
-   The server uses a plain venv; the conda env is a dev-machine thing.
-3. **Configuration** — `cp .env.example .env`, fill in the provider keys
-   plus `DJANGO_DEBUG=false`, a generated `DJANGO_SECRET_KEY`,
-   `DJANGO_ALLOWED_HOSTS` and `DJANGO_CSRF_TRUSTED_ORIGINS` for the domain,
-   and the budget guards. `chmod 600 .env`.
-4. **Django one-time** — from `webapp/`: `manage.py migrate`,
-   `collectstatic --noinput`, `createsuperuser` (for `/admin`), and
-   `rotate_accounts`, which prints the guest passwords **once** — hand them
-   out over a side channel, never through the app.
-5. **Services** — copy `deploy/pub2md.service` to
-   `/etc/systemd/system/`, enable it, copy `deploy/nginx.conf` to
-   `/etc/nginx/sites-available/pub2md`, symlink it into `sites-enabled`,
-   remove the default site, `nginx -t && systemctl reload nginx`, then
-   `certbot --nginx -d <domain>` for TLS. Keep gunicorn at `--workers 1`.
-6. **Smoke test** — the checks in the next section.
-
-### Verifying on the server
-
-After an update, or whenever the droplet has been touched:
+Terms researched during a run are stored as **candidates**: every run uses
+them, but they are not authoritative until they pass the rubric and your own
+review. Approved terms live in the version-controlled seed JSONs, which are
+the release artifact. The loop:
 
 ```bash
-sudo systemctl status pub2md && journalctl -u pub2md -n 50 --no-pager
+/opt/homebrew/Caskroom/miniconda/base/envs/elen_ai_agent/bin/python -m scripts.audit_glossary --candidates --domain cs --dry-run
 ```
 
-Then in a browser: load https://pub2md.duckdns.org, log in, upload a small
-PDF, watch the progress bar move, check that formulas render in the
-preview, and download the zip. Logging in from a second browser with the
-same account must sign the first one out.
-
-### Updating the server
-
-There is no CI/CD — nothing reaches production without these commands.
-Push locally first, then on the droplet:
+Drop `--dry-run` to apply: keeps are promoted to approved, rejects are
+removed and archived. Then regenerate the seed JSON and commit it — a
+changed seed file's hash triggers an incremental re-import on the next
+connect.
 
 ```bash
-cd /opt/pub2md-agent && git pull
+/opt/homebrew/Caskroom/miniconda/base/envs/elen_ai_agent/bin/python -m scripts.audit_glossary --regenerate-seed --domain cs
 ```
 
-```bash
-.venv/bin/pip install -e .
-```
-
-```bash
-cd /opt/pub2md-agent/webapp && ../.venv/bin/python manage.py migrate && ../.venv/bin/python manage.py collectstatic --noinput
-```
-
-```bash
-sudo systemctl restart pub2md
-```
-
-`pip install -e .` is only needed when dependencies changed; `migrate` only
-when a migration was added; `collectstatic` only when `webapp/static/`
-changed. `systemctl restart` is always needed.
+`manage.py export_candidates --output batch.json`, the login-protected
+`GET /api/glossary/candidates` and `audit_glossary --import-batch <file>`
+move candidates between installations. With a single local store there is
+nothing to move; they are kept for the day there is a second one.
 
 ### Q&A
 
@@ -261,19 +237,22 @@ entirely.
 | `PUB2MD_ACCOUNTS` | account names for `manage.py rotate_accounts` |
 | `LANGSMITH_TRACING=true` (+ key) | full step-level traces, no code changes |
 
-**Why only one gunicorn worker?** Jobs run in an in-process thread pool and
-the budget check is in-process too. Scale threads, not workers — a second
-worker would run duplicate jobs and double-count spend.
+**Why must the web app be a single process?** Jobs run in an in-process
+thread pool and the budget check is in-process too — a second process would
+run duplicate jobs and double-count spend. That is what `runserver
+--noreload` gives you; anything else (gunicorn, uvicorn) must be pinned to
+one worker and scaled with threads.
 
 **KaTeX and marked come from a CDN.** `webapp/templates/index.html` loads
-them from jsdelivr. If an audience can't reach it, math and Markdown
-preview silently degrade. Vendoring them into `webapp/static/` is a
+them from jsdelivr. Offline, math and Markdown preview silently degrade. Vendoring them into `webapp/static/` is a
 scheduled roadmap item.
 
 **Where does the glossary live?** `data/glossary.db` (generated, not in
-git) auto-seeds on first connect from the versioned
-`data/glossary_<domain>.json` files. Editing a seed JSON and deleting the
-DB is a valid reset; hand-editing the DB is not tracked by anything.
+git) imports the versioned `data/glossary_<domain>.json` seeds whenever
+their hash changes, marking them approved; terms grown at runtime stay
+candidates until audited. Editing a seed JSON is the supported way in — the
+next connect picks it up. Hand-editing the DB is tracked by nothing and
+will be overwritten by the next seed import.
 
 **Test PDFs.** `eval/test_articles/` holds copyrighted source material and
 is no longer tracked for new files — put your own samples there and list

@@ -6,9 +6,9 @@ Working rules for the remaining v3 phases:
 
 - One phase at a time: plan → confirm → implement → verify with the full
   pytest suite **and** at least one real-PDF run.
-- v3 is developed and tested locally only. The live server stays on the
-  current code until Phase 8; there is no CI/CD, nothing reaches it
-  without a manual `git pull`.
+- There is nowhere to ship to: the hosted deployment was retired on
+  2026-09-01 and pub2md is a local tool. "Done" means green on the dev
+  machine, committed to `main`, and the four documents updated.
 
 Standing scope decisions (settled, not up for casual relitigation):
 
@@ -18,24 +18,32 @@ Standing scope decisions (settled, not up for casual relitigation):
 - No figure/image extraction. No VLM for inline math.
 - Terminology stays a generate-critique pipeline, not a free-form
   multi-agent system.
+- The Django app stays. It is the local front end — preview, KaTeX, job
+  history, zip download — not a hosting artifact.
 
-## Phase 5 — Glossary path B (closed loop)
+## Phase 6 — Local-first web app
 
-Runtime term additions become `status=candidate` (usable locally, not
-authoritative); `manage.py export_candidates` produces a JSON batch behind
-the login; `audit_glossary` is extended to review candidate batches with the
-rubric plus a human pass; the regenerated seed JSONs are the release
-artifact. A seed-file hash in `seeded_domains` triggers incremental
-re-import, with approved entries winning over candidate duplicates.
+The web app was built to face the public internet. Nothing serves that
+purpose any more, and some of it is now pure friction.
 
-## Phase 6 — Wordbook export
+- **Auth off-switch**: `PUB2MD_AUTH=off` (default `on`) skips login and the
+  single-active-session rule when the app is bound to localhost. Keep the
+  code — a shared installation may come back — but do not make the owner
+  log in to translate a PDF on his own laptop.
+- **Vendor KaTeX + marked** into `webapp/static/` (was in the old Phase 8).
+  A local tool that needs a CDN to render a formula is broken on a train.
+- **Guard rails become local defaults**: `PUB2MD_MAX_UPLOAD_MB=25` /
+  `PUB2MD_MAX_PDF_PAGES=100` were anti-abuse limits for two guest accounts.
+  Raise the defaults, keep them env-driven, and document the reason.
+
+## Phase 7 — Wordbook export
 
 `scripts/export_wordbook.py --domain econ --format md|anki-csv`, built from
 approved terms × `term_occurrences`: EN / ZH / category / real example
 sentences / frequency / first seen. Markdown grouped by category; the Anki
 CSV imports as-is.
 
-## Phase 7 — Inline math + scanned PDFs
+## Phase 8 — Inline math + scanned PDFs
 
 - Inline math: map Unicode math-alphanumeric glyphs to plain ASCII in the
   extracted text. The display-formula VLM path is unchanged.
@@ -43,17 +51,16 @@ CSV imports as-is.
   transcription → single-article pipeline entry. `SCAN_MAX_PAGES`
   (default 30) rejects oversize uploads before any spend; requires `VLM_*`.
 
-## Phase 8 — Cleanup, eval, production cutover
+## Phase 9 — Cleanup, eval, v3 release
 
 - Remove the USD cost estimate (`PRICE_*`, `Job.cost_usd`, CLI line); the
   monthly budget guard switches to `PUB2MD_MONTHLY_BUDGET_TOKENS`.
-- Vendor KaTeX + marked into `webapp/static/` (no CDN dependency).
 - YAML front-matter in the output `.md` (title, source, date, base_style,
   domains, tags).
-- **Eval overhaul, then one fresh baseline** — this must happen before the
-  cutover, because the numbers in the README were last measured on the v2
-  pipeline. Fix the known weaknesses first, then re-run the full suite once
-  and update the README table:
+- **Eval overhaul, then one fresh baseline** — this gates the release,
+  because the numbers in the README were last measured on the v2 pipeline.
+  Fix the known weaknesses first, then re-run the full suite once and
+  update the README table:
   - cross-family LLM judge (the current one shares a model family with the
     translator, so it grades itself);
   - populate `eval/references/` so the dormant paragraph-boundary F1
@@ -62,9 +69,12 @@ CSV imports as-is.
     current metrics ignore — body purity (share of non-body lines surviving
     into the output) and reading-order correctness on two-column pages;
   - report refine-on vs refine-off as a separate row.
-- Server cutover — the only production-touching step of v3: pull, pip,
-  migrate, seed re-import, env changes, collectstatic, restart.
+- Tag `v3` on `main`.
 
 ## Backlog (not scheduled)
 
 - Demo recording for the README.
+- Retire the candidate export/import path (`manage.py export_candidates`,
+  `GET /api/glossary/candidates`, `audit_glossary --import-batch`) if a
+  second installation never materialises. Harmless and tested; delete only
+  when it is certain it will never be needed.

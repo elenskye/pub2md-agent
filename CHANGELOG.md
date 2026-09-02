@@ -2,11 +2,82 @@
 
 What has already been built. Planned work lives in [ROADMAP.md](ROADMAP.md).
 
-Newest first. "Local only" means the change is implemented and verified on
-the dev machine but not yet on the live server — v3 ships to production in
-one cutover (see the roadmap).
+Newest first.
 
-## v3 — two-axis styles, output purity, layout accuracy (local only)
+## Hosted deployment retired (2026-09-01)
+
+The DigitalOcean droplet behind pub2md.duckdns.org is gone; pub2md is a
+local tool again. It had run **one** job in two months, which did not
+justify the bill. Everything on it was backed up first — the whole
+`/opt/pub2md-agent` tree, both SQLite databases (consistency snapshots plus
+plain-text dumps), the certbot-rewritten nginx site and the systemd unit,
+verified file-by-file against server checksums, in
+`~/Documents/pub2md-server-backup-2026-09-01/`. The 14 glossary terms the
+server had grown and the local store had never seen were exported as a v3
+candidate batch. The Django app **stays** — it is the local front end, and
+nothing about it was hosting-specific: every production setting was already
+env-driven. What went with the droplet is `deploy/` (nginx + systemd), the
+`gunicorn` dependency, and every doc reference to a future cutover.
+
+## v3 — two-axis styles, output purity, layout accuracy
+
+### First closed-loop audit + UI refresh
+- Ran the Phase 5 loop for real on the 52 candidates the migration exposed:
+  **21 promoted** (cs 3 / econ 16 / pm 2), **31 rejected** and archived
+  (mostly settled textbook terms — logistic regression, random forest,
+  junk bonds — plus proper nouns the rubric refuses). Seeds regenerated
+  from the approved set: cs 66, econ 106, pm 2, with the DB and the seed
+  files now identical and zero candidates outstanding. The 34 stale
+  audit-rejected entries that had lingered in the seed JSONs are gone.
+- New `general` base style: neutral written Chinese for any publication
+  (reports, documentation, essays), no journalistic or academic register.
+- Glossary domains are now optional. No selection means "translate without
+  a glossary": the term pipeline is skipped entirely, and `general`
+  preselects nothing. `--domains` with no value does the same on the CLI.
+- UI: `How to Use` dialog replaces every `?` tooltip; the refine checkbox
+  became a second submit button (`Translate` / `Refined Translation`);
+  copy and capitalization tidied; the Markdown hint line removed.
+
+### Markdown direct translation
+- Upload or pass a `.md` file and get one Chinese-only `.md` back with its
+  structure intact. Separate graph (`build_md_graph`: read → glossary →
+  translate → write); the PDF stages never run.
+- Structure is preserved by the program, not by the model
+  (`src/tools/md_fences.py`): the document is cut into a literal skeleton
+  plus translatable slots, and the invariant is that rebuilding with zero
+  translations returns the source byte-for-byte.
+- Translated: prose, headings, wrapped list items, table cells, comments
+  inside code blocks, mermaid labels, and the annotation column of a
+  plain-text directory tree. Untouched: code, YAML front matter, pipes and
+  bullets, inline code, URLs, math and HTML — the last four are swapped for
+  ⟦n⟧ placeholders while a slot is out with the model, and a placeholder the
+  model drops is recovered rather than lost.
+- Slots that already contain Han characters are converted
+  Traditional→Simplified locally instead of being sent to the model, so a
+  Chinese `.md` costs nothing and an English one is never double-translated.
+- Base style and glossary domains apply as usual; no new terms are
+  researched on this path (owner's decision — direct translation must be
+  fast and must not grow the glossary unaudited). `--refine` still works.
+
+### Phase 5 — Glossary path B (closed loop)
+- `terms.status`: runtime-grown terms are **candidates** (usable at once by
+  every run, but not authoritative); the version-controlled seed JSON holds
+  the **approved** terms and is the release artifact.
+- The seed import is no longer one-shot. `seeded_domains` stores the seed
+  file's SHA-256; a changed file triggers an incremental re-import in which
+  an approved seed entry overwrites a candidate duplicate. Audit-rejected
+  keys are skipped, so a re-seed cannot resurrect a deleted term.
+- Server half: `manage.py export_candidates [--domain] [--output]` and the
+  login-protected `GET /api/glossary/candidates`, which download the same
+  JSON batch — collecting terms no longer needs an SSH session.
+- Local half: `audit_glossary --import-batch <file>` merges a batch,
+  `--candidates` judges only candidates (keep → promoted to approved,
+  reject/rewrite → removed and archived), `--regenerate-seed` writes the
+  approved terms back to `data/glossary_<domain>.json`.
+- Migrating the existing DB classified the drift it was built to expose:
+  63/90/0 approved and 10/38/4 candidates (cs/econ/pm) awaiting audit. The
+  stale seeds still listed 34 audit-rejected terms; the blocklist kept every
+  one of them out, and regenerating the seeds will drop them for good.
 
 ### Phase 4 — VLM layout hybrid + translation quality
 - `src/tools/vlm_layout.py`: each page is rendered at 140 DPI with its
@@ -66,7 +137,7 @@ one cutover (see the roadmap).
   model and the UI. Pre-v3 glossary DBs auto-migrate in place on first
   connect (style→domain, economist→econ, academy→cs).
 
-## v2 — Django web app (live)
+## v2 — Django web app
 
 1. Glossary moved from JSON files to SQLite (`data/glossary.db`), auto-seeded
    from the versioned seed JSONs.
@@ -78,9 +149,10 @@ one cutover (see the roadmap).
 5. Paper-ink redesign (cream background, cinnabar accent, serif hero).
 6. Hardening: currency escaping (`$86bn` → `\$86bn`) at generation time,
    clear-history + retention sweep, production settings, deployment to a
-   DigitalOcean droplet (nginx + gunicorn + systemd + certbot TLS).
+   DigitalOcean droplet (nginx + gunicorn + systemd + certbot TLS) —
+   retired 2026-09-01, see the entry at the top.
 
-## v1 — Agent core (live)
+## v1 — Agent core
 
 1. MVP pipeline: pdf_extractor → noise_stripper → article_segmenter →
    `Send` fan-out → translator → formatter → output_writer.
