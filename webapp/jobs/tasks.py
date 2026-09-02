@@ -31,6 +31,12 @@ def _stage_of(state: dict) -> str:
     """Human-readable stage derived from which state fields exist so far."""
     results = state.get("results")
     articles = state.get("articles")
+    md_pieces = state.get("md_pieces")
+    if md_pieces:
+        if results:
+            return "finished markdown translation"
+        segments = sum(1 for p in md_pieces if p["kind"] == "slot")
+        return f"translating markdown: {segments} segment(s)"
     if results is not None and articles:
         if len(results) >= len(articles):
             return f"finished {len(results)} article(s)"
@@ -80,26 +86,28 @@ def _run_safely(job_id) -> None:
 
 
 def _run(job) -> None:
-    import pymupdf
     from django.conf import settings as dj_settings
 
-    from src.agent.graph import build_graph
+    from src.agent.graph import build_graph, build_md_graph
     from src.config import load_settings
     from src.tools.progress import ProgressTracker
 
     from .models import Job
 
-    # Cheap structural guard before spending any tokens.
-    with pymupdf.open(job.input_path) as doc:
-        if len(doc) > dj_settings.MAX_PDF_PAGES:
-            raise ValueError(
-                f"PDF has {len(doc)} pages, above the {dj_settings.MAX_PDF_PAGES}-page limit"
-            )
+    if not job.is_markdown:
+        import pymupdf
+
+        # Cheap structural guard before spending any tokens.
+        with pymupdf.open(job.input_path) as doc:
+            if len(doc) > dj_settings.MAX_PDF_PAGES:
+                raise ValueError(
+                    f"PDF has {len(doc)} pages, above the {dj_settings.MAX_PDF_PAGES}-page limit"
+                )
 
     agent_settings = load_settings()
     job.output_dir.mkdir(parents=True, exist_ok=True)
 
-    graph = build_graph()
+    graph = build_md_graph() if job.is_markdown else build_graph()
     state: dict = {}
 
     # Batch-level progress: long LLM nodes tick a shared tracker and this
@@ -135,7 +143,8 @@ def _run(job) -> None:
     try:
         for snapshot in graph.stream(
             {
-                "pdf_path": str(job.input_path),
+                ("md_path" if job.is_markdown else "pdf_path"): str(job.input_path),
+                "md_source_name": job.original_filename,
                 "base_style": job.base_style,
                 "domains": job.domains,
                 "refine": job.refine,

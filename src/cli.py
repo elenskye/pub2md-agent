@@ -1,7 +1,10 @@
 """Command-line entry point.
 
 Usage:
-    python -m src.cli <pdf_path> [--base-style economist] [--domains econ cs]
+    python -m src.cli <path> [--base-style economist] [--domains econ cs]
+
+The input may be a PDF (full pipeline, bilingual output) or a .md file
+(direct translation, Chinese-only output); the suffix picks the graph.
 
 Observability: every run appends a structured record to logs/ (token usage,
 cost, errors, new glossary terms). Full step-by-step traces go to LangSmith
@@ -16,7 +19,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from src.agent.graph import build_graph
+from src.agent.graph import build_graph, build_md_graph
 from src.config import load_settings
 from src.styles import available_base_styles, available_domains, default_domains
 from src.tools.pdf_layout_parser import PDFExtractionError
@@ -92,7 +95,7 @@ def _print_summary(final: dict, settings) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(prog="pub2md-agent")
-    parser.add_argument("pdf_path", help="Path to the input PDF")
+    parser.add_argument("pdf_path", metavar="path", help="Input .pdf or .md file")
     parser.add_argument(
         "--base-style",
         default="economist",
@@ -101,10 +104,11 @@ def main() -> int:
     )
     parser.add_argument(
         "--domains",
-        nargs="+",
+        nargs="*",
         choices=available_domains(),  # derived from data/glossary_<domain>.json
         help="Glossary domains, in precedence order (default: the base "
-        "style's usual pairing)",
+        "style's usual pairing). Pass --domains with no value to translate "
+        "without a glossary",
     )
     parser.add_argument(
         "--refine",
@@ -124,18 +128,18 @@ def main() -> int:
     if os.getenv("LANGSMITH_TRACING", "").lower() == "true":
         print(f"LangSmith tracing ON (project: {os.getenv('LANGSMITH_PROJECT', 'default')})")
 
-    graph = build_graph()
+    is_markdown = args.pdf_path.lower().endswith(".md")
+    graph = build_md_graph() if is_markdown else build_graph()
+    inputs = {
+        "base_style": args.base_style,
+        "domains": args.domains,
+        "refine": args.refine,
+    }
+    inputs["md_path" if is_markdown else "pdf_path"] = args.pdf_path
+
     t0 = time.time()
     try:
-        final = graph.invoke(
-            {
-                "pdf_path": args.pdf_path,
-                "base_style": args.base_style,
-                "domains": args.domains,
-                "refine": args.refine,
-            },
-            config={"recursion_limit": 100},
-        )
+        final = graph.invoke(inputs, config={"recursion_limit": 100})
     except PDFExtractionError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

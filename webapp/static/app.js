@@ -110,6 +110,11 @@ $("pdf-input").addEventListener("change", () => {
   $("file-name").textContent = file ? file.name : "No file selected";
 });
 
+/* How-to dialog. */
+
+$("howto-btn").addEventListener("click", () => $("howto-dialog").showModal());
+$("howto-close").addEventListener("click", () => $("howto-dialog").close());
+
 async function showApp(username) {
   $("username").textContent = username;
   $("user-box").hidden = false;
@@ -127,28 +132,32 @@ async function showApp(username) {
 let currentJob = null;
 let pollTimer = null;
 
+/* Two submit buttons, one form: the button that was pressed decides whether
+ * the run gets the second review-and-rewrite pass. */
+let refineRequested = false;
+const submitButtons = () => [$("start-btn"), $("refine-btn")];
+$("start-btn").addEventListener("click", () => { refineRequested = false; });
+$("refine-btn").addEventListener("click", () => { refineRequested = true; });
+
 $("job-form").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   $("job-error").textContent = "";
   const file = $("pdf-input").files[0];
   if (!file) return;
+  // No domain selected is a valid choice: translate without a glossary.
   const checked = [...document.querySelectorAll("#domain-boxes input:checked")];
-  if (checked.length === 0) {
-    $("job-error").textContent = "⚠ Select at least one glossary domain";
-    return;
-  }
   const body = new FormData();
   body.append("pdf", file);
   body.append("base_style", currentBase);
   checked.forEach((box) => body.append("domains", box.value));
-  if ($("refine-input").checked) body.append("refine", "true");
+  if (refineRequested) body.append("refine", "true");
 
-  $("start-btn").disabled = true;
+  submitButtons().forEach((b) => (b.disabled = true));
   $("result-box").hidden = true;
   const resp = await api("/api/jobs", { method: "POST", body });
   if (!resp.ok) {
     $("job-error").textContent = "⚠ " + ((await resp.json()).error || "Failed to create job");
-    $("start-btn").disabled = false;
+    submitButtons().forEach((b) => (b.disabled = false));
     return;
   }
   const job = await resp.json();
@@ -170,7 +179,7 @@ async function poll() {
   if (job.status === "done" || job.status === "failed") {
     clearInterval(pollTimer);
     $("progress-box").hidden = true;
-    $("start-btn").disabled = false;
+    submitButtons().forEach((b) => (b.disabled = false));
     if (job.status === "failed") {
       $("job-error").textContent = `⚠ Job failed: ${job.error}`;
     } else {
@@ -252,7 +261,7 @@ async function refreshHistory() {
     .map(
       (j) => `<li>
         <span class="title">${j.original_filename}</span>
-        <span class="meta">${j.base_style} × ${(j.domains || []).join("+")} · ${j.status} · ${new Date(j.created_at).toLocaleString()}</span>
+        <span class="meta">${j.base_style} × ${(j.domains || []).join("+") || "no glossary"} · ${j.status} · ${new Date(j.created_at).toLocaleString()}</span>
         ${j.status === "done" ? `<a href="/api/jobs/${j.id}/download">Download</a>` : ""}
       </li>`
     )

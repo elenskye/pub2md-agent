@@ -9,5 +9,29 @@
     "verdict": "reject",
     "audited_date": "2026-07-19",
     "audit": "2026-07-19 rubric dry-run + owner review"
+  },
+  {
+    "en": "crowding out",
+    "zh": "挤出效应",
+    "category": "economics",
+    "source": "web_search",
+    "added_date": "2026-07-18",
+    "domain": "pm",
+    "status": "candidate",
+    "verdict": "reject",
+    "minimal_form": "",
+    "audited_date": "2026-07-25"
+  },
+  {
+    "en": "multilevel dataset",
+    "zh": "多层次数据集",
+    "category": "data science",
+    "source": "web_search",
+    "added_date": "2026-07-18",
+    "domain": "pm",
+    "status": "candidate",
+    "verdict": "reject",
+    "minimal_form": "",
+    "audited_date": "2026-07-25"
   }
 ]

@@ -3,7 +3,7 @@
 Runs opportunistically on every job creation (cheap queries) so the service
 stays self-cleaning without cron:
 - stale sweep: a job stuck in queued/running longer than
-  PUB2MD_JOB_STALE_MINUTES (worker died, deploy restarted) is marked failed
+  PUB2MD_JOB_STALE_MINUTES (worker died, process restarted) is marked failed
   so the UI never shows an eternal spinner;
 - retention: terminal jobs older than PUB2MD_JOB_RETENTION_DAYS are deleted,
   rows and files both — uploaded PDFs and generated markdown do not

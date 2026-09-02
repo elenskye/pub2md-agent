@@ -1,5 +1,20 @@
 {
   "domain": "pm",
   "description": "Seed terminology glossary for the pm domain (public administration / public management academic papers). Starts empty; terms grow via term_researcher and the owner's audits.",
-  "terms": []
+  "terms": [
+    {
+      "en": "American National Election Studies",
+      "zh": "美国国家选举研究",
+      "category": "survey study",
+      "source": "web_search",
+      "added_date": "2026-07-18"
+    },
+    {
+      "en": "external political efficacy",
+      "zh": "外部政治效能感",
+      "category": "political science",
+      "source": "web_search",
+      "added_date": "2026-07-18"
+    }
+  ]
 }

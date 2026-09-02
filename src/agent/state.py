@@ -70,6 +70,13 @@ class PipelineState(TypedDict, total=False):
     page_sizes: list[PageGeometry]
     cleaned_text: list[Paragraph]
     articles: list[Article]
+    # .md direct-translation path (Chinese-only output, no PDF stages).
+    md_path: str
+    md_source_name: str  # original upload name (the web app stores input.md)
+    md_pieces: list[dict]  # literal skeleton + translatable slots
+    md_title: str
+    md_translations: dict  # slot id -> Simplified Chinese
+    glossary: dict  # merged over the selected domains (read-only on this path)
     glossary_conflicts: list[dict]  # cross-domain zh disagreements, set pre-fan-out
     # Fan-in fields: article branches append via reducers.
     results: Annotated[list[ArticleResult], operator.add]

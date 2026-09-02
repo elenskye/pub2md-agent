@@ -181,5 +181,89 @@
     "verdict": "reject",
     "audited_date": "2026-07-19",
     "audit": "identity mapping purge (owner decision 2026-07-19)"
+  },
+  {
+    "en": "bias-variance trade-off",
+    "zh": "偏差-方差权衡",
+    "category": "bias-variance",
+    "source": "web_search",
+    "added_date": "2026-07-18",
+    "domain": "cs",
+    "status": "candidate",
+    "verdict": "reject",
+    "minimal_form": "",
+    "audited_date": "2026-07-25"
+  },
+  {
+    "en": "estimators",
+    "zh": "估计器",
+    "category": "machine learning",
+    "source": "web_search",
+    "added_date": "2026-07-18",
+    "domain": "cs",
+    "status": "candidate",
+    "verdict": "reject",
+    "minimal_form": "",
+    "audited_date": "2026-07-25"
+  },
+  {
+    "en": "generalizability",
+    "zh": "泛化能力",
+    "category": "machine learning",
+    "source": "web_search",
+    "added_date": "2026-07-19",
+    "domain": "cs",
+    "status": "candidate",
+    "verdict": "reject",
+    "minimal_form": "",
+    "audited_date": "2026-07-25"
+  },
+  {
+    "en": "goodness of fit",
+    "zh": "拟合优度",
+    "category": "model evaluation",
+    "source": "web_search",
+    "added_date": "2026-07-18",
+    "domain": "cs",
+    "status": "candidate",
+    "verdict": "reject",
+    "minimal_form": "",
+    "audited_date": "2026-07-25"
+  },
+  {
+    "en": "logistic regression",
+    "zh": "逻辑回归",
+    "category": "classification",
+    "source": "web_search",
+    "added_date": "2026-07-18",
+    "domain": "cs",
+    "status": "candidate",
+    "verdict": "reject",
+    "minimal_form": "",
+    "audited_date": "2026-07-25"
+  },
+  {
+    "en": "random forest",
+    "zh": "随机森林",
+    "category": "ensemble",
+    "source": "web_search",
+    "added_date": "2026-07-18",
+    "domain": "cs",
+    "status": "candidate",
+    "verdict": "reject",
+    "minimal_form": "",
+    "audited_date": "2026-07-25"
+  },
+  {
+    "en": "ridge regression",
+    "zh": "岭回归",
+    "category": "regression",
+    "source": "web_search",
+    "added_date": "2026-07-18",
+    "domain": "cs",
+    "status": "candidate",
+    "verdict": "reject",
+    "minimal_form": "",
+    "audited_date": "2026-07-25"
   }
 ]

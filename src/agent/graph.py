@@ -1,5 +1,9 @@
 """LangGraph graph assembly.
 
+Two entry points: build_graph() for PDFs (below) and build_md_graph() for
+the .md direct-translation path (read → translate → write, Chinese-only
+output).
+
 Main pipeline: pdf_extractor → noise_stripper → formula_transcriber →
 article_segmenter → glossary_conflict_auditor (cross-domain zh conflicts →
 run summary), then a Send fan-out runs one per-article subgraph per
@@ -33,6 +37,9 @@ from src.agent.nodes.formula_transcriber import formula_transcriber
 from src.agent.nodes.glossary_conflict_auditor import glossary_conflict_auditor
 from src.agent.nodes.glossary_updater import glossary_updater
 from src.agent.nodes.lang_state_detector import lang_state_detector
+from src.agent.nodes.md_reader import md_reader
+from src.agent.nodes.md_translator import md_translator
+from src.agent.nodes.md_writer import md_writer
 from src.agent.nodes.noise_stripper import noise_stripper
 from src.agent.nodes.opencc_converter import opencc_converter
 from src.agent.nodes.output_writer import output_writer
@@ -104,6 +111,25 @@ def _build_article_subgraph():
     sub.add_edge("formatter", "output_writer")
     sub.add_edge("output_writer", END)
     return sub.compile()
+
+
+def build_md_graph():
+    """The .md direct-translation path: read → load glossary → translate →
+    write. No layout parsing, no segmentation, no term research (owner's
+    decisions) — a Markdown file is already clean, structured text, and its
+    structure is preserved programmatically rather than by the model."""
+    graph = StateGraph(PipelineState)
+    graph.add_node("md_reader", md_reader)
+    graph.add_node("domain_glossary_loader", domain_glossary_loader)
+    graph.add_node("md_translator", md_translator)
+    graph.add_node("md_writer", md_writer)
+
+    graph.add_edge(START, "md_reader")
+    graph.add_edge("md_reader", "domain_glossary_loader")
+    graph.add_edge("domain_glossary_loader", "md_translator")
+    graph.add_edge("md_translator", "md_writer")
+    graph.add_edge("md_writer", END)
+    return graph.compile()
 
 
 def build_graph():

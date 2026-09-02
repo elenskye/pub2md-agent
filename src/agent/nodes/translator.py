@@ -13,20 +13,21 @@ survives.
 
 import os
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
 
 from src.agent.state import ArticleState
 from src.config import get_chat_model
 from src.tools.glossary_store import record_occurrences
-from src.tools.llm_json import loads_with_repair, strip_fences
 from src.tools.pdf_layout_parser import is_non_prose
 from src.tools.progress import tracker_from
 from src.tools.term_context import extract_example
+from src.tools.translate_common import (
+    batches,
+    glossary_constraints,
+    glossary_hits,
+    load_style_prompt,
+    parse_reply,
+)
 
-_PROMPTS_DIR = Path(__file__).resolve().parents[2] / "prompts"
-
-_BATCH_MAX_PARAS = 12
-_BATCH_MAX_CHARS = 4000
 _MAX_ATTEMPTS = 3  # 1 try + 2 retries
 
 FAILED_MARK = "[translation failed]"
@@ -55,51 +56,6 @@ Do not merge, split, skip or add segments.
 """
 
 
-def _load_style_prompt(style: str) -> str:
-    return (_PROMPTS_DIR / f"{style}_style.md").read_text(encoding="utf-8")
-
-
-def _batches(items: list[str], indices: list[int]) -> list[list[int]]:
-    """Split the given segment indices into batches bounded by count/chars."""
-    batches: list[list[int]] = [[]]
-    chars = 0
-    for i in indices:
-        text = items[i]
-        if batches[-1] and (len(batches[-1]) >= _BATCH_MAX_PARAS or chars + len(text) > _BATCH_MAX_CHARS):
-            batches.append([])
-            chars = 0
-        batches[-1].append(i)
-        chars += len(text)
-    return [b for b in batches if b]
-
-
-def _glossary_hits(glossary: dict, text: str, limit: int = 40) -> list[dict]:
-    """Glossary terms that actually occur in this article (cost control: the
-    glossary grows across runs, the prompt must not grow with it)."""
-    lower = text.lower()
-    return [t for key, t in sorted(glossary.items()) if key in lower][:limit]
-
-
-def _glossary_constraints(hits: list[dict]) -> str:
-    """Constraint block for the system prompt."""
-    if not hits:
-        return ""
-    lines = "\n".join(f"- {t['en']} => {t['zh']}" for t in hits)
-    return (
-        "\n\nGlossary — use these exact translations for these terms, "
-        "without exception:\n" + lines
-    )
-
-
-def _parse_reply(content: str, expected: list[int]) -> dict[int, str]:
-    raw = loads_with_repair(strip_fences(content))
-    out = {int(k): str(v).strip() for k, v in raw.items()}
-    missing = [i for i in expected if i + 1 not in out or not out[i + 1]]
-    if missing:
-        raise ValueError(f"segments missing from reply: {[i + 1 for i in missing]}")
-    return out
-
-
 def translator(state: ArticleState, config=None) -> dict:
     article = state["article"]
     tracker = tracker_from(config)
@@ -126,8 +82,8 @@ def translator(state: ArticleState, config=None) -> dict:
     }
     translatable = [i for i in range(len(segments)) if i not in verbatim]
 
-    hits = _glossary_hits(state.get("glossary", {}), "\n".join(segments))
-    system = _load_style_prompt(style) + _glossary_constraints(hits)
+    hits = glossary_hits(state.get("glossary", {}), "\n".join(segments))
+    system = load_style_prompt(style) + glossary_constraints(hits)
 
     # Every known-term sighting feeds the wordbook (term_occurrences):
     # frequency and real example sentences accumulate from articles the
@@ -172,7 +128,7 @@ def translator(state: ArticleState, config=None) -> dict:
                         "output_tokens": u.get("output_tokens", 0),
                     }
                 )
-                parsed = _parse_reply(resp.content, batch)
+                parsed = parse_reply(resp.content, batch)
                 return {i: parsed[i + 1] for i in batch}, batch_usage, []
             except Exception as exc:
                 if attempt == _MAX_ATTEMPTS - 1:
@@ -183,7 +139,7 @@ def translator(state: ArticleState, config=None) -> dict:
         return {}, batch_usage, []
 
     refine = bool(state.get("refine"))
-    all_batches = _batches(segments, translatable)
+    all_batches = batches(segments, translatable)
     # Progress is counted in PARAGRAPHS (owner spec): the total is known
     # before translation starts, and each finished batch ticks its segment
     # count. The refine pass processes every paragraph again, so it
@@ -217,7 +173,7 @@ def translator(state: ArticleState, config=None) -> dict:
                                 "output_tokens": u.get("output_tokens", 0),
                             }
                         )
-                        parsed = _parse_reply(resp.content, done)
+                        parsed = parse_reply(resp.content, done)
                         return {i: parsed[i + 1] for i in done}, refine_usage, []
                     except Exception as exc:
                         if attempt == 1:

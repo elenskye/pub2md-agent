@@ -2,11 +2,14 @@
 mocked out — pipeline correctness is covered by the Agent's own test suite;
 here we test the HTTP layer's validation, guards and serialization."""
 
+import io
+import json
 import tempfile
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.management import call_command
 from django.test import TestCase, override_settings
 
 # Keep test job files out of the real var/webapp/jobs directory.
@@ -35,10 +38,11 @@ class StylesApiTests(AuthedTestCase):
         resp = self.client.get("/api/styles")
         self.assertEqual(resp.status_code, 200)
         body = resp.json()
-        self.assertEqual(body["base_styles"], ["academy", "economist"])
+        self.assertEqual(body["base_styles"], ["academy", "economist", "general"])
         self.assertEqual(body["domains"], ["cs", "econ", "pm"])
         self.assertEqual(
-            body["defaults"], {"academy": ["cs"], "economist": ["econ"]}
+            body["defaults"],
+            {"academy": ["cs"], "economist": ["econ"], "general": []},
         )
 
 
@@ -58,10 +62,13 @@ class CreateJobTests(AuthedTestCase):
         self.assertTrue(job.input_path.exists())
         submit.assert_called_once_with(job.id)
 
-    def test_omitted_domains_fall_back_to_default_pairing(self, submit):
+    def test_no_domain_selected_means_no_glossary(self, submit):
+        """The UI preselects the style's usual domains, so an empty selection
+        is a deliberate "translate without a glossary" — not a mistake to
+        paper over with defaults."""
         resp = self.client.post("/api/jobs", {"pdf": _upload(), "base_style": "economist"})
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(resp.json()["domains"], ["econ"])
+        self.assertEqual(resp.json()["domains"], [])
 
     def test_refine_flag_stored_and_defaults_off(self, submit):
         resp = self.client.post(
@@ -81,6 +88,19 @@ class CreateJobTests(AuthedTestCase):
     def test_non_pdf_rejected(self, submit):
         resp = self.client.post("/api/jobs", {"pdf": _upload(name="a.docx")})
         self.assertEqual(resp.status_code, 400)
+
+    def test_markdown_upload_takes_the_direct_path(self, submit):
+        """A .md upload is accepted and stored as input.md — tasks.py routes
+        on that suffix, so the PDF pipeline never sees it."""
+        resp = self.client.post(
+            "/api/jobs",
+            {"pdf": _upload(name="README.md", content=b"# Title\n"), "base_style": "academy"},
+        )
+        self.assertEqual(resp.status_code, 201)
+        job = Job.objects.get(id=resp.json()["id"])
+        self.assertTrue(job.is_markdown)
+        self.assertEqual(job.input_path.name, "input.md")
+        self.assertTrue(job.input_path.exists())
 
     def test_unknown_base_style_rejected(self, submit):
         resp = self.client.post("/api/jobs", {"pdf": _upload(), "base_style": "poetry"})
@@ -299,3 +319,55 @@ class StageOfTests(TestCase):
         self.assertEqual(_percent_of({"articles": [1, 2], "results": [1]}), 65)
         # Completion caps at 95 — only the final save reports 100.
         self.assertEqual(_percent_of({"articles": [1, 2], "results": [1, 2]}), 95)
+
+
+_BATCH = {
+    "exported_at": "2026-07-25",
+    "terms": [
+        {
+            "en": "ablation study",
+            "zh": "消融实验",
+            "category": "ml",
+            "source": "web_search",
+            "added_date": "2026-07-25",
+            "domain": "cs",
+            "status": "candidate",
+        }
+    ],
+}
+
+
+class GlossaryCandidateExportTests(AuthedTestCase):
+    """v3 Phase 5: the owner collects runtime-grown terms for an offline
+    audit — from the browser, or over SSH with the same payload."""
+
+    @patch("jobs.views.candidate_batch", return_value=_BATCH)
+    def test_downloads_batch_as_attachment(self, batch):
+        resp = self.client.get("/api/glossary/candidates?domain=cs")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("attachment;", resp["Content-Disposition"])
+        self.assertIn("glossary-candidates-cs-", resp["Content-Disposition"])
+        self.assertEqual(json.loads(resp.content)["terms"][0]["en"], "ablation study")
+        batch.assert_called_once_with(["cs"])
+
+    @patch("jobs.views.candidate_batch", return_value=_BATCH)
+    def test_all_domains_when_unfiltered(self, batch):
+        self.assertEqual(self.client.get("/api/glossary/candidates").status_code, 200)
+        batch.assert_called_once_with(None)
+
+    def test_rejects_unknown_domain(self):
+        resp = self.client.get("/api/glossary/candidates?domain=nope")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_requires_login(self):
+        self.client.post("/api/logout")
+        self.assertEqual(self.client.get("/api/glossary/candidates").status_code, 401)
+
+    @patch("jobs.management.commands.export_candidates.candidate_batch", return_value=_BATCH)
+    def test_management_command_writes_the_same_payload(self, batch):
+        out = io.StringIO()
+        with tempfile.NamedTemporaryFile("r", suffix=".json") as fh:
+            call_command("export_candidates", "--domain", "cs", "--output", fh.name, stdout=out)
+            written = json.load(open(fh.name, encoding="utf-8"))
+        self.assertEqual(written["terms"][0]["en"], "ablation study")
+        self.assertIn("exported 1 candidate", out.getvalue())

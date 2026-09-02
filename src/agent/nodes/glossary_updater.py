@@ -9,6 +9,10 @@ runs will see.
 
 Every actually-added term also gets a term_occurrences row with a real
 example sentence from this article (wordbook raw material).
+
+Runtime writes land as CANDIDATES (v3 Phase 5): immediately usable by this
+and later runs, but authoritative only after the owner's rubric+human audit
+promotes them and a regenerated seed JSON ships them.
 """
 
 from src.agent.state import ArticleState

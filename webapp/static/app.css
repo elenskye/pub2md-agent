@@ -105,6 +105,10 @@ main {
 }
 
 .card h2 { margin: 0 0 16px; font-family: var(--serif); font-size: 19px; }
+.card h2.centered { text-align: center; }
+
+/* Right-aligned strip above the form for the How-to control. */
+.panel-head { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 .card-head { display: flex; justify-content: space-between; align-items: baseline; }
 .card-head h2 { margin-bottom: 12px; }
 
@@ -125,19 +129,6 @@ input, select {
   max-width: 100%;
 }
 input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-
-.hint {
-  display: inline-grid;
-  place-items: center;
-  width: 15px;
-  height: 15px;
-  border: 1px solid var(--muted);
-  border-radius: 50%;
-  font-size: 10px;
-  line-height: 1;
-  cursor: help;
-  user-select: none;
-}
 
 #domain-boxes {
   display: flex;
@@ -261,6 +252,12 @@ button.ghost {
 }
 button.ghost:hover { background: var(--paper); }
 
+/* Translate / Refined Translation sit side by side; the plain pass is the
+ * primary action, the refined one the deliberate extra-cost choice. */
+.button-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+/* The ghost variant is compact elsewhere; here it must match its sibling. */
+.button-row button.ghost { padding: 9px 22px; }
+
 .error { color: var(--error); font-size: 14px; min-height: 1em; margin: 0; }
 
 /* ---------- progress & results ---------- */
@@ -330,6 +327,10 @@ dialog::backdrop { background: rgba(43, 38, 32, 0.5); }
   font-family: var(--serif);
   font-weight: 700;
 }
+.howto-body { padding: 6px 28px 24px; font-size: 14px; line-height: 1.6; }
+.howto-body ul { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.howto-body b { color: var(--ink); }
+
 #preview-body { padding: 10px 28px 28px; overflow-x: auto; }
 #preview-body h1 { font-family: var(--serif); font-size: 23px; }
 #preview-body h2 { font-family: var(--serif); font-size: 17px; }

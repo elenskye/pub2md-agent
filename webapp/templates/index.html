@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pub2MD Agent · PDF → Markdown</title>
+  <title>Pub2MD Agent · Publications → Markdown</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <link rel="stylesheet" href="{% static 'app.css' %}">
 </head>
@@ -27,16 +27,16 @@
   <!-- Hero: always visible; tinted band background -->
   <section id="hero">
     <h1>Pub2MD Agent</h1>
-    <p class="hero-desc">A PDF‑to‑Markdown agent that converts publications into clean MD
-      notes, making it easy to bring external knowledge into your local
-      note‑taking workflow.</p>
+    <p class="hero-desc">An agent that turns any publication into a clean
+      Markdown document — built for people who read inside their
+      note‑taking app.</p>
   </section>
 
   <main>
     <!-- Tool card: shows the login panel when logged out, the upload panel once logged in -->
     <section id="tool-card" class="card">
       <div id="login-panel" hidden>
-        <h2>Log in to get started</h2>
+        <h2 class="centered">Log In to Get Started</h2>
         <form id="login-form">
           <label>Username <input name="username" autocomplete="username" required></label>
           <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
@@ -46,18 +46,20 @@
       </div>
 
       <div id="job-panel" hidden>
-        <h2>Upload a PDF</h2>
+        <div class="panel-head">
+          <button type="button" id="howto-btn" class="ghost">How to Use</button>
+        </div>
         <form id="job-form">
           <div class="field">
-            <span>PDF file</span>
+            <span>Support PDF or Markdown Format</span>
             <div class="file-box">
-              <button type="button" id="file-btn" class="ghost">Choose PDF</button>
+              <button type="button" id="file-btn" class="ghost">Choose file</button>
               <span id="file-name">No file selected</span>
             </div>
-            <input id="pdf-input" type="file" accept=".pdf" class="visually-hidden" tabindex="-1">
+            <input id="pdf-input" type="file" accept=".pdf,.md" class="visually-hidden" tabindex="-1">
           </div>
           <div class="field">
-            <span>Translation style</span>
+            <span>Translation Style</span>
             <div class="select" id="style-select-wrap">
               <button type="button" id="style-btn" aria-haspopup="listbox" aria-expanded="false">
                 <span id="style-current"></span><span class="chev">▾</span>
@@ -66,22 +68,13 @@
             </div>
           </div>
           <div class="field">
-            <span>Glossary domains
-              <span class="hint" tabindex="0"
-                    title="Multi-select. When domains disagree on a term's translation, the first selected one wins; conflicts are listed in the result.">?</span>
-            </span>
+            <span>Glossary Domains</span>
             <div id="domain-boxes"></div>
           </div>
-          <div class="field">
-            <span>Quality
-              <span class="hint" tabindex="0"
-                    title="A second pass reviews and rewrites every draft paragraph against the source and the glossary. Roughly doubles translation time and cost.">?</span>
-            </span>
-            <label class="pill" id="refine-pill">
-              <input type="checkbox" id="refine-input">Refine translation
-            </label>
+          <div class="button-row">
+            <button type="submit" id="start-btn">Translate</button>
+            <button type="submit" id="refine-btn" class="ghost">Refined Translation</button>
           </div>
-          <button type="submit" id="start-btn">Translate</button>
           <p id="job-error" class="error" role="alert"></p>
         </form>
 
@@ -117,6 +110,30 @@
       </div>
       <ul id="history-list"></ul>
     </section>
+
+    <dialog id="howto-dialog">
+      <div class="dialog-bar">
+        <span>How to Use</span>
+        <button id="howto-close" class="ghost">Close</button>
+      </div>
+      <div class="howto-body">
+        <ul>
+          <li>Upload a <b>PDF</b> → one bilingual Markdown file per article
+            (English paragraph, then its Chinese translation).</li>
+          <li>Upload a <b>Markdown</b> file → one Chinese-only Markdown file,
+            with the original structure kept exactly as it was.</li>
+          <li>Source language: <b>English</b> or <b>Traditional Chinese</b>
+            only. Traditional Chinese is converted to Simplified, not
+            re-translated.</li>
+          <li>Pick a <b>translation style</b> for the tone, and any number of
+            <b>glossary domains</b> to force consistent terminology. Select no
+            domain to translate without a glossary.</li>
+          <li><b>Translate</b> runs one pass. <b>Refined Translation</b> adds a
+            second review-and-rewrite pass: better wording, roughly double the
+            time and cost.</li>
+        </ul>
+      </div>
+    </dialog>
 
     <dialog id="preview-dialog">
       <div class="dialog-bar">

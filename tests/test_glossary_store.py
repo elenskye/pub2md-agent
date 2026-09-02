@@ -168,10 +168,116 @@ def test_legacy_style_db_migrates_in_place(store):
     assert {"econ", "cs"} <= seeded
 
 
+def _write_seed(store, domain: str, terms: list[dict]) -> None:
+    (store / f"glossary_{domain}.json").write_text(
+        json.dumps({"domain": domain, "terms": terms}, ensure_ascii=False), encoding="utf-8"
+    )
+
+
+def test_runtime_terms_are_candidates_seeds_are_approved(store):
+    _write_seed(store, "cs", [{"en": "token", "zh": "词元", "source": "seed"}])
+    glossary_store.add_terms("cs", [{"en": "ablation study", "zh": "消融实验"}])
+    terms = glossary_store.terms_by_en(glossary_store.load_glossary("cs"))
+    assert terms["token"]["status"] == glossary_store.APPROVED
+    assert terms["ablation study"]["status"] == glossary_store.CANDIDATE
+    # Candidates are usable at once — they load with everything else.
+    assert len(glossary_store.load_glossary("cs", status=glossary_store.CANDIDATE)["terms"]) == 1
+
+
+def test_changed_seed_triggers_incremental_reimport(store):
+    _write_seed(store, "cs", [{"en": "token", "zh": "词元"}])
+    glossary_store.load_glossary("cs")
+    _write_seed(store, "cs", [{"en": "token", "zh": "词元"}, {"en": "beam search", "zh": "束搜索"}])
+    terms = glossary_store.terms_by_en(glossary_store.load_glossary("cs"))
+    assert terms["beam search"]["zh"] == "束搜索"
+    assert terms["beam search"]["status"] == glossary_store.APPROVED
+
+
+def test_approved_seed_overwrites_candidate_duplicate(store):
+    glossary_store.add_terms("cs", [{"en": "token", "zh": "token"}])
+    _write_seed(store, "cs", [{"en": "token", "zh": "词元", "source": "seed"}])
+    term = glossary_store.terms_by_en(glossary_store.load_glossary("cs"))["token"]
+    assert term["zh"] == "词元" and term["status"] == glossary_store.APPROVED
+
+
+def test_reimport_cannot_resurrect_a_rejected_term(store):
+    (store / "glossary_cs_rejected.json").write_text(
+        json.dumps([{"en": "midnight basketball", "zh": "午夜篮球"}], ensure_ascii=False),
+        encoding="utf-8",
+    )
+    _write_seed(store, "cs", [{"en": "midnight basketball", "zh": "午夜篮球"}])
+    assert glossary_store.load_glossary("cs")["terms"] == []
+
+
+def test_approve_and_regenerate_seed_roundtrip(store):
+    glossary_store.add_terms(
+        "cs", [{"en": "ablation study", "zh": "消融实验"}, {"en": "wall didactics", "zh": "墙面教学"}]
+    )
+    assert [t["en"] for t in glossary_store.candidates_for(["cs"])] == [
+        "ablation study",
+        "wall didactics",
+    ]
+    promoted = glossary_store.approve_terms("cs", ["Ablation Study", "not-there"])
+    assert len(promoted) == 1 and promoted[0]["status"] == glossary_store.APPROVED
+
+    path, count = glossary_store.write_seed("cs")
+    assert count == 1
+    seeded = json.loads(path.read_text(encoding="utf-8"))
+    assert [t["en"] for t in seeded["terms"]] == ["ablation study"]
+    # Writing the seed refreshes the hash: no re-import, and the unapproved
+    # candidate is neither promoted nor lost.
+    terms = glossary_store.terms_by_en(glossary_store.load_glossary("cs"))
+    assert terms["wall didactics"]["status"] == glossary_store.CANDIDATE
+    assert len(terms) == 2
+
+
+def test_import_candidates_merges_a_server_batch(store):
+    batch = [
+        {"en": "ablation study", "zh": "消融实验", "domain": "cs"},
+        {"en": "wall didactics", "zh": "墙面教学", "domain": "cs"},
+        {"en": "orphan", "zh": "孤儿"},  # no domain → skipped
+    ]
+    (store / "glossary_cs_rejected.json").write_text(
+        json.dumps([{"en": "wall didactics", "zh": "墙面教学"}], ensure_ascii=False),
+        encoding="utf-8",
+    )
+    imported = glossary_store.import_candidates(batch)
+    assert [t["en"] for t in imported] == ["ablation study"]
+    assert glossary_store.candidate_batch(["cs"])["terms"][0]["en"] == "ablation study"
+
+
+def test_pre_phase5_db_classifies_rows_against_the_seed(store):
+    """A database from before the status column: seed keys become approved,
+    everything else is a candidate awaiting audit (the observed drift)."""
+    _write_seed(store, "cs", [{"en": "token", "zh": "词元"}])
+    conn = sqlite3.connect(store / "glossary.db")
+    conn.executescript(
+        """
+        CREATE TABLE terms (
+            domain TEXT NOT NULL, en_lower TEXT NOT NULL, en TEXT NOT NULL,
+            zh TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'uncategorized',
+            source TEXT NOT NULL DEFAULT 'web_search', added_date TEXT NOT NULL,
+            PRIMARY KEY (domain, en_lower)
+        );
+        CREATE TABLE seeded_domains (domain TEXT PRIMARY KEY);
+        INSERT INTO terms VALUES
+            ('cs', 'token', 'token', '词元', 'ml', 'seed', '2026-07-01'),
+            ('cs', 'ablation study', 'ablation study', '消融实验', 'ml', 'web_search', '2026-07-19');
+        INSERT INTO seeded_domains VALUES ('cs');
+        """
+    )
+    conn.commit()
+    conn.close()
+
+    terms = glossary_store.terms_by_en(glossary_store.load_glossary("cs"))
+    assert terms["token"]["status"] == glossary_store.APPROVED
+    assert terms["ablation study"]["status"] == glossary_store.CANDIDATE
+
+
 def test_base_styles_derived_from_prompt_files():
     from src.styles import available_base_styles
 
-    assert available_base_styles() == ["academy", "economist"]
+    assert available_base_styles() == ["academy", "economist", "general"]
 
 
 def test_domains_derived_from_seed_files():
@@ -180,5 +286,8 @@ def test_domains_derived_from_seed_files():
     assert available_domains() == ["cs", "econ", "pm"]
     assert default_domains("economist") == ["econ"]
     assert default_domains("academy") == ["cs"]
+    # "general" prose has no domain: an explicit empty default means the
+    # translation runs without a glossary.
+    assert default_domains("general") == []
     # Unknown base style still yields a usable, valid default.
     assert default_domains("mystery") == ["cs"]

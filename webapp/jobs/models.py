@@ -39,8 +39,13 @@ class Job(models.Model):
         return Path(settings.JOBS_ROOT) / str(self.id)
 
     @property
+    def is_markdown(self) -> bool:
+        """A .md upload takes the direct-translation path (Chinese-only)."""
+        return self.original_filename.lower().endswith(".md")
+
+    @property
     def input_path(self) -> Path:
-        return self.dir / "input.pdf"
+        return self.dir / ("input.md" if self.is_markdown else "input.pdf")
 
     @property
     def output_dir(self) -> Path:

@@ -9,4 +9,5 @@ urlpatterns = [
     path("jobs/<uuid:job_id>", views.job_detail),
     path("jobs/<uuid:job_id>/download", views.job_download),
     path("jobs/<uuid:job_id>/files/<str:name>", views.job_file),
+    path("glossary/candidates", views.glossary_candidates),
 ]

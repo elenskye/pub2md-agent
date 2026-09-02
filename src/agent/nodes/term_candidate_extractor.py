@@ -77,6 +77,11 @@ Return ONLY a JSON object: {{"terms": ["...", ...]}} (empty list if none).
 def term_candidate_extractor(state: ArticleState) -> dict:
     article = state["article"]
     glossary = state.get("glossary", {})
+    # No domain selected means "translate without a glossary": there is
+    # nowhere to attribute a new term, so skip the whole term pipeline
+    # instead of researching terms nobody will store.
+    if not state.get("domains"):
+        return {"term_candidates": []}
     full_text = "\n".join([article["title"], article["subtitle"], *state["english_paragraphs"]])
     text = full_text[:_MAX_TEXT_CHARS]
     known = ", ".join(sorted(t["en"] for t in glossary.values())) or "(empty)"

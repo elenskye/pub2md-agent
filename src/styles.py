@@ -17,10 +17,13 @@ from pathlib import Path
 PROMPTS_DIR = Path(__file__).resolve().parent / "prompts"
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
-# Preselected domains per base style — guidance, not a restriction.
+# Preselected domains per base style — guidance, not a restriction. An empty
+# list is a deliberate "no glossary" default (general prose has no domain);
+# an unlisted style falls back to the first available domain.
 DEFAULT_DOMAINS = {
     "economist": ["econ"],
     "academy": ["cs"],
+    "general": [],
 }
 
 
@@ -37,9 +40,10 @@ def available_domains() -> list[str]:
 
 
 def default_domains(base_style: str) -> list[str]:
-    """Preselected domains for a base style; falls back to the first
+    """Preselected domains for a base style. An explicit empty default means
+    "translate without a glossary"; an unknown style falls back to the first
     available domain so a fresh style name still yields a valid job."""
-    defaults = DEFAULT_DOMAINS.get(base_style, [])
-    known = available_domains()
-    picked = [d for d in defaults if d in known]
-    return picked or known[:1]
+    if base_style in DEFAULT_DOMAINS:
+        known = available_domains()
+        return [d for d in DEFAULT_DOMAINS[base_style] if d in known]
+    return available_domains()[:1]

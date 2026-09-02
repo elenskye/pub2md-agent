@@ -7,13 +7,17 @@ GET  /api/styles          — base styles, domains and default pairings
                             (single source of truth: src/styles.py)
 GET  /api/jobs?limit=N    — recent jobs (history)
 GET  /api/jobs/<id>/files/<name> — one generated markdown file (preview)
+GET  /api/glossary/candidates    — JSON batch of runtime-grown terms, for
+                            the owner's offline audit (v3 Phase 5)
 
 CSRF is enforced; the UI echoes the csrftoken cookie via X-CSRFToken.
 """
 
 import io
+import json
 import re
 import zipfile
+from datetime import date
 
 from django.conf import settings
 from django.http import FileResponse, HttpResponse, JsonResponse
@@ -22,6 +26,8 @@ from django.views.decorators.http import require_GET, require_http_methods
 
 from accounts.decorators import api_login_required
 from src.styles import available_base_styles, available_domains, default_domains
+
+from src.tools.glossary_store import candidate_batch
 
 from . import maintenance, tasks
 from .models import Job
@@ -65,8 +71,8 @@ def _create_job(request):
 
     if upload is None:
         return JsonResponse({"error": "missing file field 'pdf'"}, status=400)
-    if not upload.name.lower().endswith(".pdf"):
-        return JsonResponse({"error": "only .pdf files are accepted"}, status=400)
+    if not upload.name.lower().endswith((".pdf", ".md")):
+        return JsonResponse({"error": "only .pdf and .md files are accepted"}, status=400)
     if upload.size > settings.MAX_UPLOAD_MB * 1024 * 1024:
         return JsonResponse(
             {"error": f"file exceeds the {settings.MAX_UPLOAD_MB} MB limit"}, status=400
@@ -76,8 +82,8 @@ def _create_job(request):
     unknown = [d for d in domains if d not in available_domains()]
     if unknown:
         return JsonResponse({"error": f"unknown domain(s): {', '.join(unknown)}"}, status=400)
-    if not domains:
-        domains = default_domains(base_style)
+    # No domain is a valid choice: the UI preselects the style's usual
+    # pairing, so an empty selection means "translate without a glossary".
     if _month_spend_usd() >= settings.MONTHLY_BUDGET_USD:
         return JsonResponse(
             {"error": "monthly budget exhausted; try again next month"}, status=429
@@ -148,3 +154,22 @@ def job_file(request, job_id, name):
     if not path.is_file():
         return JsonResponse({"error": "file not found"}, status=404)
     return HttpResponse(path.read_text(encoding="utf-8"), content_type="text/markdown; charset=utf-8")
+
+
+@require_GET
+@api_login_required
+def glossary_candidates(request):
+    """Download the terms this deployment grew but nobody has audited yet.
+    Same payload as `manage.py export_candidates`, so the owner can collect a
+    batch from the browser, for an installation you cannot audit in place."""
+    domain = request.GET.get("domain")
+    if domain and domain not in available_domains():
+        return JsonResponse({"error": f"unknown domain '{domain}'"}, status=400)
+    batch = candidate_batch([domain] if domain else None)
+    response = HttpResponse(
+        json.dumps(batch, ensure_ascii=False, indent=2) + "\n",
+        content_type="application/json; charset=utf-8",
+    )
+    stem = f"glossary-candidates-{domain or 'all'}-{date.today().isoformat()}"
+    response["Content-Disposition"] = f'attachment; filename="{stem}.json"'
+    return response
